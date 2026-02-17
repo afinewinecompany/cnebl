@@ -20,3 +20,8 @@ export { GameForm } from './GameForm';
 export type { GameFormData, SeriesGameData } from './GameForm';
 export { GameStatusBadge, getStatusColor } from './GameStatusBadge';
 export { GameCalendar, GameCalendarCompact } from './GameCalendar';
+
+// Team Management Components
+export { TeamEditModal } from './TeamEditModal';
+export type { TeamFormData } from './TeamEditModal';
+export { DeleteConfirmModal } from './DeleteConfirmModal';

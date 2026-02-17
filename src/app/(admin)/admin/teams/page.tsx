@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { TeamEditModal, DeleteConfirmModal } from '@/components/admin';
+import type { TeamFormData } from '@/components/admin';
+import type { TeamWithManager } from '@/types';
 import {
   Shield,
   Users,
@@ -15,133 +18,44 @@ import {
   Trash2,
   Eye,
   Search,
+  RefreshCw,
 } from 'lucide-react';
-
-// Mock teams data
-interface TeamData {
-  id: string;
-  name: string;
-  abbreviation: string;
-  primaryColor: string;
-  secondaryColor: string;
-  managerId: string | null;
-  managerName: string | null;
-  wins: number;
-  losses: number;
-  ties: number;
-  runsScored: number;
-  runsAllowed: number;
-  playerCount: number;
-  isActive: boolean;
-}
-
-const mockTeamsData: TeamData[] = [
-  {
-    id: 'rays',
-    name: 'Rays',
-    abbreviation: 'RAY',
-    primaryColor: '#092C5C',
-    secondaryColor: '#8FBCE6',
-    managerId: '4',
-    managerName: 'Ryan Costa',
-    wins: 14,
-    losses: 4,
-    ties: 0,
-    runsScored: 168,
-    runsAllowed: 87,
-    playerCount: 14,
-    isActive: true,
-  },
-  {
-    id: 'pirates',
-    name: 'Pirates',
-    abbreviation: 'PIR',
-    primaryColor: '#27251F',
-    secondaryColor: '#FDB827',
-    managerId: '3',
-    managerName: 'Jesse Hill',
-    wins: 12,
-    losses: 4,
-    ties: 1,
-    runsScored: 119,
-    runsAllowed: 81,
-    playerCount: 15,
-    isActive: true,
-  },
-  {
-    id: 'athletics',
-    name: 'Athletics',
-    abbreviation: 'ATH',
-    primaryColor: '#003831',
-    secondaryColor: '#EFB21E',
-    managerId: '1',
-    managerName: 'Ben Douglas',
-    wins: 12,
-    losses: 6,
-    ties: 1,
-    runsScored: 184,
-    runsAllowed: 118,
-    playerCount: 16,
-    isActive: true,
-  },
-  {
-    id: 'mariners',
-    name: 'Mariners',
-    abbreviation: 'MAR',
-    primaryColor: '#0C2C56',
-    secondaryColor: '#005C5C',
-    managerId: null,
-    managerName: null,
-    wins: 8,
-    losses: 10,
-    ties: 0,
-    runsScored: 148,
-    runsAllowed: 171,
-    playerCount: 18,
-    isActive: true,
-  },
-  {
-    id: 'rockies',
-    name: 'Rockies',
-    abbreviation: 'ROC',
-    primaryColor: '#33006F',
-    secondaryColor: '#C4CED4',
-    managerId: null,
-    managerName: null,
-    wins: 4,
-    losses: 12,
-    ties: 0,
-    runsScored: 93,
-    runsAllowed: 176,
-    playerCount: 14,
-    isActive: true,
-  },
-  {
-    id: 'diamondbacks',
-    name: 'Diamondbacks',
-    abbreviation: 'DBK',
-    primaryColor: '#A71930',
-    secondaryColor: '#E3D4AD',
-    managerId: null,
-    managerName: null,
-    wins: 1,
-    losses: 15,
-    ties: 0,
-    runsScored: 92,
-    runsAllowed: 171,
-    playerCount: 12,
-    isActive: true,
-  },
-];
 
 /**
  * Team Management Page
  *
- * Admin page to view and manage teams.
+ * Admin page to view, create, edit, and delete teams.
  */
 export default function TeamsPage() {
-  const [teams] = useState<TeamData[]>(mockTeamsData);
+  const [teams, setTeams] = useState<TeamWithManager[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Modal states
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<TeamWithManager | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Load teams from API
+  const fetchTeams = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/teams');
+      if (response.ok) {
+        const data = await response.json();
+        setTeams(data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch teams:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
 
   const filteredTeams = teams.filter((team) =>
     team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -159,6 +73,125 @@ export default function TeamsPage() {
     return diff > 0 ? `+${diff}` : diff.toString();
   };
 
+  // Handle opening Edit modal
+  const handleEditTeam = (team: TeamWithManager) => {
+    setSelectedTeam(team);
+    setIsEditModalOpen(true);
+  };
+
+  // Handle opening Add modal
+  const handleAddTeam = () => {
+    setSelectedTeam(null);
+    setIsEditModalOpen(true);
+  };
+
+  // Handle opening Delete modal
+  const handleDeleteClick = (team: TeamWithManager) => {
+    setSelectedTeam(team);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Save team (create or update)
+  const handleSaveTeam = async (formData: TeamFormData) => {
+    setIsSaving(true);
+    try {
+      if (selectedTeam) {
+        // Update existing team - Currently mock update since API doesn't have PUT
+        // When API is ready: await fetch(`/api/teams/${selectedTeam.id}`, { method: 'PUT', body: JSON.stringify(formData) })
+        setTeams((prev) =>
+          prev.map((team) =>
+            team.id === selectedTeam.id
+              ? {
+                  ...team,
+                  name: formData.name,
+                  abbreviation: formData.abbreviation,
+                  primaryColor: formData.primaryColor,
+                  secondaryColor: formData.secondaryColor,
+                  isActive: formData.isActive,
+                }
+              : team
+          )
+        );
+      } else {
+        // Create new team - Currently mock create since API doesn't have POST
+        // When API is ready: await fetch('/api/teams', { method: 'POST', body: JSON.stringify(formData) })
+        const newTeam: TeamWithManager = {
+          id: `team-${Date.now()}`,
+          name: formData.name,
+          abbreviation: formData.abbreviation,
+          primaryColor: formData.primaryColor,
+          secondaryColor: formData.secondaryColor,
+          isActive: formData.isActive,
+          logoUrl: null,
+          managerId: null,
+          seasonId: 'season-2026',
+          wins: 0,
+          losses: 0,
+          ties: 0,
+          runsScored: 0,
+          runsAllowed: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          manager: null,
+        };
+        setTeams((prev) => [...prev, newTeam]);
+      }
+      setIsEditModalOpen(false);
+      setSelectedTeam(null);
+    } catch (error) {
+      console.error('Failed to save team:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete team
+  const handleDeleteTeam = async () => {
+    if (!selectedTeam) return;
+
+    setIsSaving(true);
+    try {
+      // Currently mock delete since API doesn't have DELETE
+      // When API is ready: await fetch(`/api/teams/${selectedTeam.id}`, { method: 'DELETE' })
+      setTeams((prev) => prev.filter((team) => team.id !== selectedTeam.id));
+      setIsDeleteModalOpen(false);
+      setSelectedTeam(null);
+    } catch (error) {
+      console.error('Failed to delete team:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Stats calculations
+  const activeTeams = teams.filter((t) => t.isActive);
+  const totalPlayers = teams.reduce((sum, t) => {
+    // Calculate based on roster data when available
+    return sum + 15; // Placeholder average
+  }, 0);
+  const teamsWithoutManager = teams.filter((t) => !t.managerId).length;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded-lg animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="h-64 bg-gray-200 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -171,10 +204,16 @@ export default function TeamsPage() {
             View and manage league teams
           </p>
         </div>
-        <Button variant="default" size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Team
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchTeams}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button variant="default" size="sm" onClick={handleAddTeam}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Team
+          </Button>
+        </div>
       </div>
 
       {/* Search */}
@@ -211,13 +250,11 @@ export default function TeamsPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-field/10 rounded-lg flex items-center justify-center">
-                <Users className="w-5 h-5 text-field" />
+                <Shield className="w-5 h-5 text-field" />
               </div>
               <div>
-                <p className="text-2xl font-mono font-bold text-field">
-                  {teams.reduce((sum, t) => sum + t.playerCount, 0)}
-                </p>
-                <p className="text-xs text-charcoal-light uppercase tracking-wide">Total Players</p>
+                <p className="text-2xl font-mono font-bold text-field">{activeTeams.length}</p>
+                <p className="text-xs text-charcoal-light uppercase tracking-wide">Active Teams</p>
               </div>
             </div>
           </CardContent>
@@ -230,7 +267,7 @@ export default function TeamsPage() {
               </div>
               <div>
                 <p className="text-2xl font-mono font-bold text-cardinal">
-                  {teams.filter((t) => !t.managerId).length}
+                  {teamsWithoutManager}
                 </p>
                 <p className="text-xs text-charcoal-light uppercase tracking-wide">No Manager</p>
               </div>
@@ -245,7 +282,7 @@ export default function TeamsPage() {
               </div>
               <div>
                 <p className="text-2xl font-mono font-bold text-gold">
-                  {Math.round(teams.reduce((sum, t) => sum + t.playerCount, 0) / teams.length)}
+                  {teams.length > 0 ? Math.round(totalPlayers / teams.length) : 0}
                 </p>
                 <p className="text-xs text-charcoal-light uppercase tracking-wide">Avg Roster</p>
               </div>
@@ -261,22 +298,22 @@ export default function TeamsPage() {
             {/* Team Header with Color */}
             <div
               className="h-3"
-              style={{ backgroundColor: team.primaryColor }}
+              style={{ backgroundColor: team.primaryColor || '#374151' }}
             />
             <CardHeader className="pb-4">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div
                     className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-headline font-bold text-lg"
-                    style={{ backgroundColor: team.primaryColor }}
+                    style={{ backgroundColor: team.primaryColor || '#374151' }}
                   >
                     {team.abbreviation}
                   </div>
                   <div>
                     <CardTitle className="text-lg">{team.name}</CardTitle>
                     <CardDescription>
-                      {team.managerName ? (
-                        <span>Manager: {team.managerName}</span>
+                      {team.manager?.fullName ? (
+                        <span>Manager: {team.manager.fullName}</span>
                       ) : (
                         <span className="text-cardinal">No manager assigned</span>
                       )}
@@ -318,14 +355,14 @@ export default function TeamsPage() {
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-charcoal-light" />
                   <span className="text-sm font-medium text-charcoal">
-                    {team.playerCount} Players
+                    View Roster
                   </span>
                 </div>
                 <Link
                   href={`/admin/players?team=${team.id}`}
                   className="text-xs text-navy hover:underline"
                 >
-                  View Roster
+                  Manage Players →
                 </Link>
               </div>
 
@@ -337,11 +374,21 @@ export default function TeamsPage() {
                     View
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => handleEditTeam(team)}
+                >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit
                 </Button>
-                <Button variant="ghost" size="icon-sm" className="text-cardinal hover:text-cardinal hover:bg-cardinal/10">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="text-cardinal hover:text-cardinal hover:bg-cardinal/10"
+                  onClick={() => handleDeleteClick(team)}
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -351,21 +398,53 @@ export default function TeamsPage() {
       </div>
 
       {/* Empty State */}
-      {filteredTeams.length === 0 && (
+      {filteredTeams.length === 0 && !isLoading && (
         <Card>
           <CardContent className="p-12 text-center">
             <Shield className="w-12 h-12 text-charcoal-light mx-auto mb-4" />
             <h3 className="font-headline text-lg font-semibold text-navy uppercase tracking-wide mb-2">
               No Teams Found
             </h3>
-            <p className="text-sm text-charcoal-light font-body">
+            <p className="text-sm text-charcoal-light font-body mb-4">
               {searchQuery
                 ? `No teams match "${searchQuery}"`
                 : 'No teams have been created yet.'}
             </p>
+            {!searchQuery && (
+              <Button onClick={handleAddTeam}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Team
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
+
+      {/* Edit/Create Modal */}
+      <TeamEditModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedTeam(null);
+        }}
+        team={selectedTeam}
+        onSave={handleSaveTeam}
+        isLoading={isSaving}
+      />
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setSelectedTeam(null);
+        }}
+        onConfirm={handleDeleteTeam}
+        title="Delete Team"
+        description="Are you sure you want to delete this team? This action cannot be undone. All player assignments will be removed."
+        itemName={selectedTeam?.name || ''}
+        isLoading={isSaving}
+      />
     </div>
   );
 }

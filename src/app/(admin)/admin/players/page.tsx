@@ -175,6 +175,51 @@ export default function PlayersPage() {
     setSelectedUser(null);
   };
 
+  // Export users to CSV
+  const handleExport = () => {
+    const headers = [
+      'Name',
+      'Email',
+      'Role',
+      'Team',
+      'Jersey #',
+      'Position',
+      'Secondary Position',
+      'Bats',
+      'Throws',
+      'Captain',
+      'Active',
+    ];
+
+    const csvRows = [
+      headers.join(','),
+      ...filteredUsers.map((user) => [
+        `"${user.fullName}"`,
+        `"${user.email}"`,
+        user.role,
+        user.teamName || 'Unassigned',
+        user.jerseyNumber || '',
+        user.primaryPosition || '',
+        user.secondaryPosition || '',
+        user.bats || '',
+        user.throws || '',
+        user.isCaptain ? 'Yes' : 'No',
+        user.isActive ? 'Yes' : 'No',
+      ].join(','))
+    ];
+
+    const csvContent = csvRows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `players-export-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -188,7 +233,7 @@ export default function PlayersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
           </Button>
