@@ -1,12 +1,9 @@
 /**
  * Database Client
- * Placeholder for Railway PostgreSQL connection
- *
- * When ready to connect to the database:
- * 1. Install: npm install pg @types/pg
- * 2. Add DATABASE_URL to environment variables
- * 3. Uncomment the PostgreSQL client code below
+ * PostgreSQL connection for Railway
  */
+
+import { Pool, PoolClient } from 'pg';
 
 // =============================================================================
 // DATABASE CONNECTION STATUS
@@ -24,20 +21,16 @@ export function getDatabaseStatus(): DatabaseStatus {
 }
 
 // =============================================================================
-// POSTGRESQL CLIENT (PLACEHOLDER)
+// POSTGRESQL CLIENT
 // =============================================================================
-
-// TODO: Uncomment when ready to connect to Railway PostgreSQL
-/*
-import { Pool, PoolClient } from 'pg';
 
 // Connection pool configuration
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20, // Maximum number of clients in the pool
-  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 };
 
 // Create a connection pool
@@ -60,10 +53,12 @@ function getPool(): Pool {
   return pool;
 }
 
-// Execute a query
-export async function query<T = any>(
+/**
+ * Execute a query
+ */
+export async function query<T = unknown>(
   text: string,
-  params?: any[]
+  params?: unknown[]
 ): Promise<{ rows: T[]; rowCount: number }> {
   const client = await getPool().connect();
   try {
@@ -74,15 +69,19 @@ export async function query<T = any>(
   }
 }
 
-// Get a client for transactions
+/**
+ * Get a client for transactions
+ */
 export async function getClient(): Promise<PoolClient> {
   return getPool().connect();
 }
 
-// Test database connection
+/**
+ * Test database connection
+ */
 export async function testConnection(): Promise<boolean> {
   try {
-    const result = await query('SELECT NOW()');
+    await query('SELECT NOW()');
     connectionStatus = 'connected';
     return true;
   } catch (error) {
@@ -92,7 +91,9 @@ export async function testConnection(): Promise<boolean> {
   }
 }
 
-// Close pool (for graceful shutdown)
+/**
+ * Close pool (for graceful shutdown)
+ */
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
@@ -100,49 +101,11 @@ export async function closePool(): Promise<void> {
     connectionStatus = 'disconnected';
   }
 }
-*/
-
-// =============================================================================
-// MOCK DATABASE CLIENT (ACTIVE)
-// =============================================================================
-
-/**
- * Mock query function for development
- * Returns mock data instead of actual database queries
- */
-export async function query<T = unknown>(
-  _text: string,
-  _params?: unknown[]
-): Promise<{ rows: T[]; rowCount: number }> {
-  // In development, we use direct mock data imports instead of database queries
-  // This function exists for future PostgreSQL integration
-  console.warn('[DB] Using mock database client - no actual queries executed');
-  return { rows: [], rowCount: 0 };
-}
-
-/**
- * Test database connection (mock)
- */
-export async function testConnection(): Promise<boolean> {
-  // In development mode, we always report as connected (using mock data)
-  connectionStatus = 'connected';
-  return true;
-}
-
-/**
- * Close pool (mock - no-op)
- */
-export async function closePool(): Promise<void> {
-  connectionStatus = 'disconnected';
-}
 
 // =============================================================================
 // DATABASE CONFIGURATION
 // =============================================================================
 
-/**
- * Database configuration type
- */
 export interface DatabaseConfig {
   host: string;
   port: number;
@@ -153,7 +116,6 @@ export interface DatabaseConfig {
 
 /**
  * Get database configuration from environment
- * Note: In production, use DATABASE_URL from Railway
  */
 export function getDatabaseConfig(): DatabaseConfig | null {
   const url = process.env.DATABASE_URL;

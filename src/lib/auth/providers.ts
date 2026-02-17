@@ -2,8 +2,7 @@
  * NextAuth.js Providers Configuration
  *
  * Sets up authentication providers for CNEBL
- * Currently: Credentials (email/password)
- * Future: Google OAuth
+ * Uses PostgreSQL database for user authentication
  */
 
 import Credentials from 'next-auth/providers/credentials';
@@ -11,100 +10,57 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import type { Provider } from 'next-auth/providers';
 import type { User, UserRole } from '@/types/auth';
+import { query } from '@/lib/db/client';
 
 // Login validation schema
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(1, 'Password is required'),
 });
 
-/**
- * Mock user database for development only.
- * In production, this should be replaced with actual database queries.
- *
- * IMPORTANT: Passwords must be set via environment variables.
- * Never commit actual passwords or password hashes to source control.
- */
-interface MockUserConfig {
+// Database user type
+interface DbUser {
   id: string;
   email: string;
-  passwordEnvVar: string;
-  name: string;
+  password_hash: string;
+  full_name: string;
   role: UserRole;
-  teamId?: string;
-  teamName?: string;
+  avatar_url: string | null;
+  is_active: boolean;
 }
 
-const MOCK_USER_CONFIGS: MockUserConfig[] = [
-  {
-    id: '1',
-    email: process.env.MOCK_USER_COMMISSIONER_EMAIL || 'commissioner@cnebl.com',
-    passwordEnvVar: 'MOCK_USER_COMMISSIONER_PASSWORD_HASH',
-    name: 'John Commissioner',
-    role: 'commissioner' as UserRole,
-  },
-  {
-    id: '2',
-    email: process.env.MOCK_USER_ADMIN_EMAIL || 'admin@cnebl.com',
-    passwordEnvVar: 'MOCK_USER_ADMIN_PASSWORD_HASH',
-    name: 'Admin User',
-    role: 'admin' as UserRole,
-  },
-  {
-    id: '5',
-    email: process.env.MOCK_USER_ADMIN2_EMAIL || 'admin@gmail.com',
-    passwordEnvVar: 'MOCK_USER_ADMIN2_PASSWORD_HASH',
-    name: 'Admin',
-    role: 'admin' as UserRole,
-  },
-  {
-    id: '3',
-    email: process.env.MOCK_USER_MANAGER_EMAIL || 'manager@cnebl.com',
-    passwordEnvVar: 'MOCK_USER_MANAGER_PASSWORD_HASH',
-    name: 'Mike Manager',
-    role: 'manager' as UserRole,
-    teamId: 'team-1',
-    teamName: 'Cape Cod Mariners',
-  },
-  {
-    id: '4',
-    email: process.env.MOCK_USER_PLAYER_EMAIL || 'player@cnebl.com',
-    passwordEnvVar: 'MOCK_USER_PLAYER_PASSWORD_HASH',
-    name: 'Tommy Player',
-    role: 'player' as UserRole,
-    teamId: 'team-1',
-    teamName: 'Cape Cod Mariners',
-  },
-];
-
-// Build mock users array from config - only include users with valid password hashes
-const MOCK_USERS: (User & { password: string })[] = MOCK_USER_CONFIGS
-  .filter(config => {
-    const passwordHash = process.env[config.passwordEnvVar];
-    return passwordHash && passwordHash.length > 0;
-  })
-  .map(config => ({
-    id: config.id,
-    email: config.email,
-    password: process.env[config.passwordEnvVar]!,
-    name: config.name,
-    role: config.role,
-    teamId: config.teamId,
-    teamName: config.teamName,
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
-  }));
-
 /**
- * Find user by email (mock implementation)
- * Replace with database query in production
+ * Find user by email from database
  */
 async function findUserByEmail(email: string): Promise<(User & { password: string }) | null> {
-  // Simulate database delay
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  try {
+    const result = await query<DbUser>(
+      `SELECT id, email, password_hash, full_name, role, avatar_url, is_active
+       FROM users
+       WHERE LOWER(email) = LOWER($1) AND is_active = true`,
+      [email]
+    );
 
-  const user = MOCK_USERS.find((u) => u.email.toLowerCase() === email.toLowerCase());
-  return user || null;
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const dbUser = result.rows[0];
+
+    return {
+      id: dbUser.id,
+      email: dbUser.email,
+      password: dbUser.password_hash,
+      name: dbUser.full_name,
+      role: dbUser.role,
+      profileImage: dbUser.avatar_url || undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+  } catch (error) {
+    console.error('[Auth] Database query error:', error);
+    return null;
+  }
 }
 
 /**
@@ -137,7 +93,7 @@ export const credentialsProvider = Credentials({
       // Validate input
       const { email, password } = loginSchema.parse(credentials);
 
-      // Find user
+      // Find user in database
       const user = await findUserByEmail(email);
       if (!user) {
         console.log('[Auth] User not found:', email);
@@ -172,15 +128,9 @@ export const credentialsProvider = Credentials({
 
 /**
  * All authentication providers
- * Add Google OAuth here when ready
  */
 export const providers: Provider[] = [
   credentialsProvider,
-  // Future: Google OAuth
-  // Google({
-  //   clientId: process.env.GOOGLE_CLIENT_ID!,
-  //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  // }),
 ];
 
 /**
@@ -191,5 +141,3 @@ export async function hashPassword(password: string): Promise<string> {
   const saltRounds = 12;
   return bcrypt.hash(password, saltRounds);
 }
-
-// findUserByEmail is used internally - not exported to prevent credential leakage
