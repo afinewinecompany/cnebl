@@ -152,7 +152,7 @@ export default function Home() {
                 { icon: Users, value: "6", label: "Teams", color: "accent" },
                 { icon: null, emoji: true, value: "90", label: "Players", color: "gold" },
                 { icon: Calendar, value: "45", label: "Games", color: "success" },
-                { icon: null, nine: true, value: "9", label: "Innings", color: "warning" },
+                { icon: null, nine: true, value: "405", label: "Innings", color: "warning" },
               ].map((stat, i) => (
                 <div key={i} className="text-center group">
                   <div className={`w-24 h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${
@@ -206,9 +206,9 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[
-                { home: "Rays", away: "Pirates", date: "Sat, Mar 15", time: "2:00 PM", field: "Harbor Field", homeColor: "#092C5C", awayColor: "#27251F" },
-                { home: "Athletics", away: "Mariners", date: "Sat, Mar 15", time: "5:00 PM", field: "Harbor Field", homeColor: "#003831", awayColor: "#0C2C56" },
-                { home: "Rockies", away: "Diamondbacks", date: "Sun, Mar 16", time: "1:00 PM", field: "Coastal Park", homeColor: "#33006F", awayColor: "#A71930" },
+                { home: "Rays", away: "Pirates", date: "Sat, Mar 15", time: "2:00 PM", field: "Leary Field - Portsmouth", homeColor: "#092C5C", awayColor: "#27251F" },
+                { home: "Athletics", away: "Mariners", date: "Sat, Mar 15", time: "5:00 PM", field: "Leary Field - Portsmouth", homeColor: "#003831", awayColor: "#0C2C56" },
+                { home: "Rockies", away: "Diamondbacks", date: "Sun, Mar 16", time: "1:00 PM", field: "Leary Field - Portsmouth", homeColor: "#33006F", awayColor: "#A71930" },
               ].map((game, i) => (
                 <Card key={i} className="overflow-hidden group hover:shadow-2xl hover:-translate-y-2 transition-all duration-300 border-0 shadow-lg">
                   {/* Gradient header */}

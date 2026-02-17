@@ -25,13 +25,13 @@ export function Header() {
       <nav className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2 flex-1 sm:flex-initial">
             <Image
               src="/logo.png"
               alt="CNEBL Logo"
-              width={48}
-              height={48}
-              className="rounded-lg"
+              width={56}
+              height={56}
+              className="rounded-lg w-14 h-14 sm:w-12 sm:h-12"
               priority
             />
             <span className="hidden sm:block font-bold text-lg text-gray-900">CNEBL</span>

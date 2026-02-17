@@ -415,7 +415,7 @@ function GameDetailModal({
       onClick={onClose}
     >
       <Card
-        className="w-full max-w-md"
+        className="w-full max-w-md bg-white"
         onClick={(e) => e.stopPropagation()}
       >
         <CardHeader className="relative border-b border-cream-dark">

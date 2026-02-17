@@ -51,6 +51,13 @@ const MOCK_USER_CONFIGS: MockUserConfig[] = [
     role: 'admin' as UserRole,
   },
   {
+    id: '5',
+    email: process.env.MOCK_USER_ADMIN2_EMAIL || 'admin@gmail.com',
+    passwordEnvVar: 'MOCK_USER_ADMIN2_PASSWORD_HASH',
+    name: 'Admin',
+    role: 'admin' as UserRole,
+  },
+  {
     id: '3',
     email: process.env.MOCK_USER_MANAGER_EMAIL || 'manager@cnebl.com',
     passwordEnvVar: 'MOCK_USER_MANAGER_PASSWORD_HASH',
