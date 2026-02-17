@@ -2,8 +2,6 @@
 
 import { useState, useMemo } from "react";
 import { BarChart3, Users, Table, LayoutGrid } from "lucide-react";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -114,10 +112,7 @@ export default function StatsPage() {
   );
 
   return (
-    <div className="flex min-h-screen flex-col bg-cream">
-      <Header />
-
-      <main className="flex-1">
+    <div className="min-h-screen bg-cream">
         {/* Page Header */}
         <section className="bg-navy py-8 md:py-12">
           <div className="container mx-auto px-4">
@@ -410,9 +405,6 @@ export default function StatsPage() {
             </Card>
           </div>
         </section>
-      </main>
-
-      <Footer />
     </div>
   );
 }

@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StandingsTable, type TeamStanding } from "@/components/standings/StandingsTable";
 import { cn } from "@/lib/utils";
@@ -160,10 +158,7 @@ export default function StandingsPage() {
   }, { team: "", diff: -999 });
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream">
-      <Header />
-
-      <main className="flex-1">
+    <div className="min-h-screen bg-cream">
         {/* Hero Section */}
         <section className="bg-navy py-12 lg:py-16">
           <div className="container mx-auto px-4">
@@ -260,9 +255,6 @@ export default function StandingsPage() {
             Standings updated: February 16, 2025 at 10:30 AM EST
           </p>
         </section>
-      </main>
-
-      <Footer />
     </div>
   );
 }

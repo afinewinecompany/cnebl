@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Trophy, BarChart3, Users, MapPin, Clock, ChevronRight } from "lucide-react";
-import { LiveGamesSection } from "./LiveGamesSection";
 
 export default function Home() {
   return (
@@ -54,14 +53,6 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        {/* Live Games Section - Shows currently in-progress games */}
-        <LiveGamesSection
-          pollInterval={30000}
-          multipleLayout={false}
-          showNoGamesMessage={false}
-          className="py-8 bg-gradient-to-b from-gray-900 to-primary-dark"
-        />
 
         {/* Quick Links - Enhanced cards with gradients and better hover states */}
         <section className="py-20 bg-gradient-to-b from-gray-50 to-white">

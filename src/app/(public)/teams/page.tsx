@@ -1,7 +1,5 @@
 "use client";
 
-import { Header } from "@/components/layout/Header";
-import { Footer } from "@/components/layout/Footer";
 import { TeamCard } from "@/components/teams/TeamCard";
 import { teamDetails } from "@/lib/mock-data";
 import { Users } from "lucide-react";
@@ -20,10 +18,7 @@ export default function TeamsPage() {
   });
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-
-      <main className="flex-1">
+    <div className="min-h-screen bg-gray-50">
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-primary via-primary-dark to-gray-900 py-12 lg:py-16 relative overflow-hidden">
           {/* Decorative elements */}
@@ -72,9 +67,6 @@ export default function TeamsPage() {
             </p>
           </div>
         </section>
-      </main>
-
-      <Footer />
     </div>
   );
 }
