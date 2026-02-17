@@ -3,13 +3,16 @@
  *
  * Protects routes and handles auth redirects
  * Uses NextAuth.js v5 edge-compatible auth
+ *
+ * IMPORTANT: This uses edgeAuthConfig which does NOT import bcryptjs
+ * or other Node.js-only modules. The Edge Runtime doesn't support crypto.
  */
 
 import NextAuth from 'next-auth';
-import { authConfig } from '@/lib/auth/config';
+import { edgeAuthConfig } from '@/lib/auth/edge-config';
 
-// Export the middleware using NextAuth
-export default NextAuth(authConfig).auth;
+// Export the middleware using NextAuth with edge-compatible config
+export default NextAuth(edgeAuthConfig).auth;
 
 /**
  * Matcher configuration
