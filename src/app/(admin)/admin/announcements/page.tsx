@@ -72,7 +72,7 @@ export default function AnnouncementsPage() {
       const response = await fetch('/api/seasons');
       if (response.ok) {
         const data = await response.json();
-        setSeasons(data.data || []);
+        setSeasons(data.data?.seasons || []);
       }
     } catch (error) {
       console.error('Failed to fetch seasons:', error);
