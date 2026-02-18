@@ -44,7 +44,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-cream-light hover:text-chalk transition-colors"
+                    className="text-sm text-cream-light hover:text-chalk transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark rounded"
                   >
                     {link.name}
                   </Link>
@@ -63,7 +63,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-cream-light hover:text-chalk transition-colors"
+                    className="text-sm text-cream-light hover:text-chalk transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark rounded"
                   >
                     {link.name}
                   </Link>
@@ -82,7 +82,7 @@ export function Footer() {
                 <li key={link.name}>
                   <Link
                     href={link.href}
-                    className="text-sm text-cream-light hover:text-chalk transition-colors"
+                    className="text-sm text-cream-light hover:text-chalk transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark rounded"
                   >
                     {link.name}
                   </Link>
@@ -101,13 +101,13 @@ export function Footer() {
             <div className="flex gap-6">
               <Link
                 href="/privacy"
-                className="text-xs text-cream-light hover:text-chalk transition-colors"
+                className="text-xs text-cream-light hover:text-chalk transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark rounded"
               >
                 Privacy Policy
               </Link>
               <Link
                 href="/terms"
-                className="text-xs text-cream-light hover:text-chalk transition-colors"
+                className="text-xs text-cream-light hover:text-chalk transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-navy-dark rounded"
               >
                 Terms of Service
               </Link>

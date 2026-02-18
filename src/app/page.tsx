@@ -4,18 +4,29 @@ import { Header, Footer } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Trophy, BarChart3, Users, MapPin, Clock, ChevronRight } from "lucide-react";
+import { Calendar, Trophy, BarChart3, Users, MapPin, Clock, ChevronRight, UserCircle, Timer } from "lucide-react";
 
 export default function Home() {
   return (
     <>
       <Header />
-      <main className="min-h-screen">
-        {/* Hero Section - Vibrant gradient with texture overlay */}
-        <section className="relative bg-gradient-to-br from-primary via-primary-dark to-gray-900 py-24 md:py-32 overflow-hidden">
+      <main id="main-content" className="min-h-screen">
+        {/* Hero Section - Background image with gradient overlay */}
+        <section className="relative py-24 md:py-32 overflow-hidden">
+          {/* Background Image */}
+          <Image
+            src="/bg_01.png"
+            alt=""
+            fill
+            className="object-cover object-center"
+            priority
+            aria-hidden="true"
+          />
+          {/* Dark gradient overlay for contrast */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/85 via-primary-dark/80 to-gray-900/90" aria-hidden="true" />
           {/* Decorative baseball stitching pattern */}
-          <div className="absolute inset-0 opacity-5">
-            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <div className="absolute inset-0 opacity-10" aria-hidden="true">
+            <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" role="presentation">
               <pattern id="stitches" patternUnits="userSpaceOnUse" width="50" height="50">
                 <path d="M0 25 Q 12.5 20, 25 25 T 50 25" stroke="white" strokeWidth="2" fill="none" />
                 <path d="M0 25 Q 12.5 30, 25 25 T 50 25" stroke="white" strokeWidth="2" fill="none" />
@@ -24,8 +35,8 @@ export default function Home() {
             </svg>
           </div>
           {/* Gradient orbs for visual interest */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-accent/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-accent/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 animate-pulse" aria-hidden="true" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2 animate-pulse" aria-hidden="true" />
 
           <div className="container mx-auto px-4 text-center relative z-10">
             {/* Large Logo */}
@@ -55,7 +66,7 @@ export default function Home() {
         </section>
 
         {/* Quick Links - Enhanced cards with gradients and better hover states */}
-        <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
+        <section className="py-16 md:py-20 bg-gradient-to-b from-gray-50 to-white">
           <div className="container mx-auto px-4">
             <div className="text-center mb-12">
               <Badge className="bg-accent/10 text-accent border-accent/20 mb-4">Quick Access</Badge>
@@ -63,13 +74,13 @@ export default function Home() {
                 Everything You Need
               </h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {/* Schedule Card */}
               <Card className="text-center group cursor-pointer border-2 border-transparent hover:border-accent/30 transition-all duration-300 hover:shadow-xl hover:shadow-accent/10 hover:-translate-y-2 overflow-hidden">
                 <CardContent className="pt-10 pb-8 relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent to-accent-light opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-300">
-                    <Calendar className="w-10 h-10 text-white" />
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-accent to-accent-dark flex items-center justify-center shadow-lg shadow-accent/30 group-hover:scale-110 transition-transform duration-300 delay-75">
+                    <Calendar className="w-10 h-10 text-white" aria-hidden="true" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">
                     Schedule
@@ -88,8 +99,8 @@ export default function Home() {
               <Card className="text-center group cursor-pointer border-2 border-transparent hover:border-gold/30 transition-all duration-300 hover:shadow-xl hover:shadow-gold/10 hover:-translate-y-2 overflow-hidden">
                 <CardContent className="pt-10 pb-8 relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-gold to-warning opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gold to-warning-dark flex items-center justify-center shadow-lg shadow-gold/30 group-hover:scale-110 transition-transform duration-300">
-                    <Trophy className="w-10 h-10 text-white" />
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-gold to-warning-dark flex items-center justify-center shadow-lg shadow-gold/30 group-hover:scale-110 transition-transform duration-300 delay-75">
+                    <Trophy className="w-10 h-10 text-white" aria-hidden="true" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">
                     Standings
@@ -108,8 +119,8 @@ export default function Home() {
               <Card className="text-center group cursor-pointer border-2 border-transparent hover:border-success/30 transition-all duration-300 hover:shadow-xl hover:shadow-success/10 hover:-translate-y-2 overflow-hidden">
                 <CardContent className="pt-10 pb-8 relative">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-success to-success-light opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-success to-success-dark flex items-center justify-center shadow-lg shadow-success/30 group-hover:scale-110 transition-transform duration-300">
-                    <BarChart3 className="w-10 h-10 text-white" />
+                  <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-success to-success-dark flex items-center justify-center shadow-lg shadow-success/30 group-hover:scale-110 transition-transform duration-300 delay-75">
+                    <BarChart3 className="w-10 h-10 text-white" aria-hidden="true" />
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">
                     Statistics
@@ -128,10 +139,10 @@ export default function Home() {
         </section>
 
         {/* Season Stats - Vibrant gradient with glowing numbers */}
-        <section className="py-20 bg-gradient-to-br from-primary via-primary-dark to-gray-900 relative overflow-hidden">
+        <section className="py-16 md:py-20 bg-gradient-to-br from-primary via-primary-dark to-gray-900 relative overflow-hidden">
           {/* Decorative elements */}
-          <div className="absolute top-0 left-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gold/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-accent/20 rounded-full blur-3xl" aria-hidden="true" />
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gold/10 rounded-full blur-3xl" aria-hidden="true" />
 
           <div className="container mx-auto px-4 text-center relative z-10">
             <Badge className="bg-gold text-gray-900 font-semibold mb-6 px-4 py-1">Current Season</Badge>
@@ -141,33 +152,25 @@ export default function Home() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
               {[
                 { icon: Users, value: "6", label: "Teams", color: "accent" },
-                { icon: null, emoji: true, value: "90", label: "Players", color: "gold" },
+                { icon: UserCircle, value: "90", label: "Players", color: "gold" },
                 { icon: Calendar, value: "45", label: "Games", color: "success" },
-                { icon: null, nine: true, value: "405", label: "Innings", color: "warning" },
+                { icon: Timer, value: "405", label: "Innings", color: "warning" },
               ].map((stat, i) => (
                 <div key={i} className="text-center group">
-                  <div className={`w-24 h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${
+                  <div className={`w-20 h-20 md:w-24 md:h-24 mx-auto mb-4 rounded-2xl bg-gradient-to-br ${
                     stat.color === 'accent' ? 'from-accent/20 to-accent/10' :
                     stat.color === 'gold' ? 'from-gold/20 to-gold/10' :
                     stat.color === 'success' ? 'from-success/20 to-success/10' :
                     'from-warning/20 to-warning/10'
                   } flex items-center justify-center border border-white/10 backdrop-blur-sm group-hover:scale-110 transition-transform duration-300`}>
-                    {stat.icon ? (
-                      <stat.icon className={`w-10 h-10 ${
-                        stat.color === 'accent' ? 'text-accent' :
-                        stat.color === 'gold' ? 'text-gold' :
-                        stat.color === 'success' ? 'text-success' :
-                        'text-warning'
-                      }`} />
-                    ) : stat.emoji ? (
-                      <span className="text-4xl">&#9918;</span>
-                    ) : (
-                      <span className={`font-mono text-3xl font-bold ${
-                        stat.color === 'warning' ? 'text-warning' : 'text-gold'
-                      }`}>9</span>
-                    )}
+                    <stat.icon className={`w-8 h-8 md:w-10 md:h-10 ${
+                      stat.color === 'accent' ? 'text-accent' :
+                      stat.color === 'gold' ? 'text-gold' :
+                      stat.color === 'success' ? 'text-success' :
+                      'text-warning'
+                    }`} aria-hidden="true" />
                   </div>
-                  <div className={`font-mono text-5xl md:text-6xl font-bold mb-2 ${
+                  <div className={`font-mono text-4xl md:text-5xl lg:text-6xl font-bold mb-2 ${
                     stat.color === 'accent' ? 'text-accent drop-shadow-[0_0_20px_rgba(14,165,233,0.5)]' :
                     stat.color === 'gold' ? 'text-gold drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]' :
                     stat.color === 'success' ? 'text-success drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]' :
@@ -181,7 +184,7 @@ export default function Home() {
         </section>
 
         {/* Upcoming Games - Enhanced cards with team colors and animations */}
-        <section className="py-20 bg-gradient-to-b from-white to-gray-50">
+        <section className="py-16 md:py-20 bg-gradient-to-b from-white to-gray-50">
           <div className="container mx-auto px-4">
             <div className="flex items-center justify-between mb-12">
               <div>
@@ -218,28 +221,26 @@ export default function Home() {
                   <CardContent className="py-8 px-6 bg-white">
                     <div className="flex items-center justify-between mb-6">
                       <div className="text-center flex-1">
-                        <div className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br ${
-                          game.awayColor === 'primary' ? 'from-primary to-primary-dark' :
-                          game.awayColor === 'warning' ? 'from-warning to-warning-dark' :
-                          'from-gold to-warning'
-                        } flex items-center justify-center shadow-md`}>
-                          <span className="text-white font-bold text-lg">{game.away.charAt(0)}</span>
+                        <div
+                          className="w-14 h-14 mx-auto mb-3 rounded-full flex items-center justify-center shadow-md transition-transform duration-300 group-hover:scale-110"
+                          style={{ background: `linear-gradient(135deg, ${game.awayColor} 0%, ${game.awayColor}dd 100%)` }}
+                        >
+                          <span className="text-white font-bold text-lg drop-shadow-sm">{game.away.charAt(0)}</span>
                         </div>
                         <div className="font-bold text-xl text-gray-900">{game.away}</div>
                         <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Away</div>
                       </div>
-                      <div className="px-6">
-                        <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-                          <span className="font-bold text-gray-400 text-lg">VS</span>
+                      <div className="px-4 md:px-6">
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                          <span className="font-bold text-gray-400 text-sm md:text-lg">VS</span>
                         </div>
                       </div>
                       <div className="text-center flex-1">
-                        <div className={`w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br ${
-                          game.homeColor === 'accent' ? 'from-accent to-accent-dark' :
-                          game.homeColor === 'success' ? 'from-success to-success-dark' :
-                          'from-danger to-danger-dark'
-                        } flex items-center justify-center shadow-md`}>
-                          <span className="text-white font-bold text-lg">{game.home.charAt(0)}</span>
+                        <div
+                          className="w-14 h-14 mx-auto mb-3 rounded-full flex items-center justify-center shadow-md transition-transform duration-300 group-hover:scale-110"
+                          style={{ background: `linear-gradient(135deg, ${game.homeColor} 0%, ${game.homeColor}dd 100%)` }}
+                        >
+                          <span className="text-white font-bold text-lg drop-shadow-sm">{game.home.charAt(0)}</span>
                         </div>
                         <div className="font-bold text-xl text-gray-900">{game.home}</div>
                         <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Home</div>
@@ -263,14 +264,14 @@ export default function Home() {
         </section>
 
         {/* League Info Section - Vibrant gradient with better contrast */}
-        <section className="py-20 bg-gradient-to-br from-accent via-primary to-primary-dark relative overflow-hidden">
+        <section className="py-16 md:py-20 bg-gradient-to-br from-accent via-primary to-primary-dark relative overflow-hidden">
           {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-white/5 rounded-full blur-3xl" aria-hidden="true" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-gold/10 rounded-full blur-3xl" aria-hidden="true" />
 
           <div className="container mx-auto px-4 text-center relative z-10">
-            <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-white/10 backdrop-blur-sm">
-              <span className="text-3xl">&#9918;</span>
+            <div className="inline-flex items-center justify-center w-16 h-16 mb-6 rounded-full bg-white/10 backdrop-blur-sm" aria-hidden="true">
+              <Trophy className="w-8 h-8 text-gold" />
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
               The Spirit of New England Baseball
