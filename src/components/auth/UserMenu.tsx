@@ -117,13 +117,13 @@ export function UserMenu() {
 
       {/* Dropdown menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-ivory rounded-retro border border-cream-dark shadow-card z-50">
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg border border-gray-200 shadow-lg z-50">
           {/* User info header */}
-          <div className="p-4 border-b border-cream-dark">
-            <p className="font-headline text-sm font-semibold text-navy truncate">
+          <div className="p-4 border-b border-gray-200">
+            <p className="font-semibold text-sm text-gray-900 truncate">
               {user.name}
             </p>
-            <p className="text-xs text-charcoal-light truncate">
+            <p className="text-xs text-gray-500 truncate">
               {user.email}
             </p>
             <div className="mt-2 flex items-center gap-2">
@@ -131,7 +131,7 @@ export function UserMenu() {
                 {roleDisplayName}
               </Badge>
               {user.teamName && (
-                <span className="text-xs text-charcoal-light truncate">
+                <span className="text-xs text-gray-500 truncate">
                   {user.teamName}
                 </span>
               )}
@@ -143,7 +143,7 @@ export function UserMenu() {
             <Link
               href="/dashboard"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-retro text-sm text-charcoal hover:bg-cream-dark transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
@@ -152,7 +152,7 @@ export function UserMenu() {
             <Link
               href="/availability"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-retro text-sm text-charcoal hover:bg-cream-dark transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
               <CheckCircle className="w-4 h-4" />
               Availability
@@ -162,7 +162,7 @@ export function UserMenu() {
               <Link
                 href={`/teams/${user.teamId}`}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-retro text-sm text-charcoal hover:bg-cream-dark transition-colors"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Users className="w-4 h-4" />
                 My Team
@@ -172,7 +172,7 @@ export function UserMenu() {
             <Link
               href="/profile"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-3 py-2 rounded-retro text-sm text-charcoal hover:bg-cream-dark transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
             >
               <User className="w-4 h-4" />
               Profile
@@ -182,7 +182,7 @@ export function UserMenu() {
               <Link
                 href="/admin"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-retro text-sm text-charcoal hover:bg-cream-dark transition-colors"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 <Settings className="w-4 h-4" />
                 Admin Settings
@@ -191,13 +191,13 @@ export function UserMenu() {
           </nav>
 
           {/* Logout */}
-          <div className="p-2 border-t border-cream-dark">
+          <div className="p-2 border-t border-gray-200">
             <button
               onClick={() => {
                 setIsOpen(false);
                 logout();
               }}
-              className="flex items-center gap-3 w-full px-3 py-2 rounded-retro text-sm text-cardinal hover:bg-cardinal/10 transition-colors"
+              className="flex items-center gap-3 w-full px-3 py-2 rounded-md text-sm text-red-600 hover:bg-red-50 transition-colors"
             >
               <LogOut className="w-4 h-4" />
               Sign Out
