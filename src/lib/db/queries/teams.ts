@@ -4,8 +4,23 @@
  * Currently returns mock data, will be replaced with PostgreSQL queries
  */
 
-import { teams, battingStats, pitchingStats } from '@/lib/mock-data';
+import { teams as mockTeamsData, battingStats, pitchingStats } from '@/lib/mock-data';
 import type { TeamWithManager, PlayerWithDetails } from '@/types';
+
+// =============================================================================
+// MUTABLE MOCK DATA STORE
+// =============================================================================
+
+// Create a mutable copy of teams for CRUD operations
+// This will be replaced with real database operations later
+let teamsStore = [...mockTeamsData];
+
+/**
+ * Extended team type for admin view with roster count
+ */
+export interface TeamWithAdminDetails extends TeamWithManager {
+  rosterCount: number;
+}
 
 // =============================================================================
 // MOCK DATA TRANSFORMERS
@@ -14,7 +29,7 @@ import type { TeamWithManager, PlayerWithDetails } from '@/types';
 /**
  * Transform mock team data to API format
  */
-function transformTeam(team: typeof teams[0]): TeamWithManager {
+function transformTeam(team: typeof teamsStore[0]): TeamWithManager {
   return {
     id: team.id,
     name: team.name,
@@ -34,6 +49,33 @@ function transformTeam(team: typeof teams[0]): TeamWithManager {
     updatedAt: '2026-02-16T00:00:00Z',
     manager: null, // Mock data doesn't have managers
   };
+}
+
+/**
+ * Transform mock team data to admin API format with roster count
+ */
+function transformTeamAdmin(team: typeof teamsStore[0]): TeamWithAdminDetails {
+  const rosterCount = getRosterCountForTeam(team.id);
+  return {
+    ...transformTeam(team),
+    rosterCount,
+  };
+}
+
+/**
+ * Get roster count for a team from mock data
+ */
+function getRosterCountForTeam(teamId: string): number {
+  const teamBatters = battingStats.filter((p: { teamId: string }) => p.teamId === teamId);
+  const teamPitchers = pitchingStats.filter((p: { teamId: string }) => p.teamId === teamId);
+
+  // Count unique players (some players may appear in both batting and pitching)
+  const uniquePlayerNames = new Set([
+    ...teamBatters.map((p) => p.playerName),
+    ...teamPitchers.map((p) => p.playerName),
+  ]);
+
+  return uniquePlayerNames.size;
 }
 
 /**
@@ -101,8 +143,8 @@ function getTeamRunsAllowed(teamId: string): number {
  */
 function buildRoster(teamId: string): PlayerWithDetails[] {
   // Combine batters and pitchers for the team
-  const teamBatters = battingStats.filter((p) => p.teamId === teamId);
-  const teamPitchers = pitchingStats.filter((p) => p.teamId === teamId);
+  const teamBatters = battingStats.filter((p: { teamId: string }) => p.teamId === teamId);
+  const teamPitchers = pitchingStats.filter((p: { teamId: string }) => p.teamId === teamId);
 
   // Create player entries from batters
   const players: PlayerWithDetails[] = teamBatters.map((batter, index) => ({
@@ -128,9 +170,9 @@ function buildRoster(teamId: string): PlayerWithDetails[] {
     },
     team: {
       id: batter.teamId,
-      name: teams.find((t) => t.id === batter.teamId)?.name || '',
+      name: teamsStore.find((t) => t.id === batter.teamId)?.name || '',
       abbreviation: batter.teamAbbr,
-      primaryColor: teams.find((t) => t.id === batter.teamId)?.primaryColor || null,
+      primaryColor: teamsStore.find((t) => t.id === batter.teamId)?.primaryColor || null,
     },
   }));
 
@@ -160,9 +202,9 @@ function buildRoster(teamId: string): PlayerWithDetails[] {
         },
         team: {
           id: pitcher.teamId,
-          name: teams.find((t) => t.id === pitcher.teamId)?.name || '',
+          name: teamsStore.find((t) => t.id === pitcher.teamId)?.name || '',
           abbreviation: pitcher.teamAbbr,
-          primaryColor: teams.find((t) => t.id === pitcher.teamId)?.primaryColor || null,
+          primaryColor: teamsStore.find((t) => t.id === pitcher.teamId)?.primaryColor || null,
         },
       });
     }
@@ -185,7 +227,7 @@ export async function getAllTeams(options?: {
   // Simulate async database query
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  let result = teams.map(transformTeam);
+  let result = teamsStore.map(transformTeam);
 
   // Filter by active status if specified
   if (options?.active !== undefined) {
@@ -201,7 +243,7 @@ export async function getAllTeams(options?: {
 export async function getTeamById(teamId: string): Promise<TeamWithManager | null> {
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  const team = teams.find((t) => t.id === teamId);
+  const team = teamsStore.find((t) => t.id === teamId);
   if (!team) return null;
 
   return transformTeam(team);
@@ -216,7 +258,7 @@ export async function getTeamRoster(teamId: string): Promise<{
 } | null> {
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  const team = teams.find((t) => t.id === teamId);
+  const team = teamsStore.find((t) => t.id === teamId);
   if (!team) return null;
 
   const players = buildRoster(teamId);
@@ -231,4 +273,168 @@ export async function getTeamRoster(teamId: string): Promise<{
     },
     players,
   };
+}
+
+// =============================================================================
+// ADMIN QUERY FUNCTIONS
+// =============================================================================
+
+/**
+ * Get all teams with admin-level details (including roster counts)
+ */
+export async function getAllTeamsAdmin(options?: {
+  seasonId?: string;
+  active?: boolean;
+}): Promise<TeamWithAdminDetails[]> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  let result = teamsStore.map(transformTeamAdmin);
+
+  // Filter by active status if specified
+  if (options?.active !== undefined) {
+    result = result.filter((team) => team.isActive === options.active);
+  }
+
+  return result;
+}
+
+/**
+ * Get a single team by ID with admin-level details
+ */
+export async function getTeamByIdAdmin(teamId: string): Promise<TeamWithAdminDetails | null> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const team = teamsStore.find((t) => t.id === teamId);
+  if (!team) return null;
+
+  return transformTeamAdmin(team);
+}
+
+/**
+ * Get roster count for a team
+ */
+export async function getTeamRosterCount(teamId: string): Promise<number> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  return getRosterCountForTeam(teamId);
+}
+
+// =============================================================================
+// ADMIN MUTATION FUNCTIONS
+// =============================================================================
+
+/**
+ * Input data for creating a new team
+ */
+export interface CreateTeamInput {
+  id: string;
+  name: string;
+  abbreviation: string;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+  isActive: boolean;
+  seasonId: string;
+}
+
+/**
+ * Create a new team
+ */
+export async function createTeam(data: CreateTeamInput): Promise<TeamWithManager> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const now = new Date().toISOString();
+
+  // Create the new team in mock data format
+  const newMockTeam = {
+    id: data.id,
+    name: data.name,
+    abbreviation: data.abbreviation,
+    primaryColor: data.primaryColor || '#374151',
+    secondaryColor: data.secondaryColor || '#6B7280',
+  };
+
+  // Add to the mutable store
+  teamsStore.push(newMockTeam);
+
+  // Return the full team object
+  const team: TeamWithManager = {
+    id: data.id,
+    name: data.name,
+    abbreviation: data.abbreviation,
+    logoUrl: null,
+    primaryColor: data.primaryColor,
+    secondaryColor: data.secondaryColor,
+    managerId: null,
+    seasonId: data.seasonId,
+    wins: 0,
+    losses: 0,
+    ties: 0,
+    runsScored: 0,
+    runsAllowed: 0,
+    isActive: data.isActive,
+    createdAt: now,
+    updatedAt: now,
+    manager: null,
+  };
+
+  return team;
+}
+
+/**
+ * Update an existing team
+ */
+export async function updateTeam(
+  teamId: string,
+  data: Partial<{
+    name: string;
+    abbreviation: string;
+    primaryColor: string | null;
+    secondaryColor: string | null;
+    logoUrl: string | null;
+    isActive: boolean;
+    managerId: string | null;
+  }>
+): Promise<TeamWithManager> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const teamIndex = teamsStore.findIndex((t) => t.id === teamId);
+  if (teamIndex === -1) {
+    throw new Error(`Team not found: ${teamId}`);
+  }
+
+  // Update the mock data store
+  const existingTeam = teamsStore[teamIndex];
+  teamsStore[teamIndex] = {
+    ...existingTeam,
+    ...(data.name && { name: data.name }),
+    ...(data.abbreviation && { abbreviation: data.abbreviation }),
+    ...(data.primaryColor !== undefined && { primaryColor: data.primaryColor || existingTeam.primaryColor }),
+    ...(data.secondaryColor !== undefined && { secondaryColor: data.secondaryColor || existingTeam.secondaryColor }),
+  };
+
+  // Return the updated team with full details
+  const updatedTeam = transformTeam(teamsStore[teamIndex]);
+
+  return {
+    ...updatedTeam,
+    ...(data.logoUrl !== undefined && { logoUrl: data.logoUrl }),
+    ...(data.isActive !== undefined && { isActive: data.isActive }),
+    ...(data.managerId !== undefined && { managerId: data.managerId }),
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Delete a team
+ */
+export async function deleteTeam(teamId: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const teamIndex = teamsStore.findIndex((t) => t.id === teamId);
+  if (teamIndex === -1) {
+    throw new Error(`Team not found: ${teamId}`);
+  }
+
+  // Remove from the mutable store
+  teamsStore.splice(teamIndex, 1);
 }

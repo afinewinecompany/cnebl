@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,33 +22,43 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+interface TeamWithAdminDetails extends TeamWithManager {
+  rosterCount?: number;
+}
+
 /**
  * Team Management Page
  *
  * Admin page to view, create, edit, and delete teams.
  */
 export default function TeamsPage() {
-  const [teams, setTeams] = useState<TeamWithManager[]>([]);
+  const [teams, setTeams] = useState<TeamWithAdminDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   // Modal states
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<TeamWithManager | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamWithAdminDetails | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Load teams from API
   const fetchTeams = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/teams');
+      setError(null);
+      const response = await fetch('/api/admin/teams');
       if (response.ok) {
         const data = await response.json();
         setTeams(data.data || []);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error?.message || 'Failed to load teams');
       }
-    } catch (error) {
-      console.error('Failed to fetch teams:', error);
+    } catch (err) {
+      console.error('Failed to fetch teams:', err);
+      setError('Failed to connect to server');
     } finally {
       setIsLoading(false);
     }
@@ -74,7 +85,7 @@ export default function TeamsPage() {
   };
 
   // Handle opening Edit modal
-  const handleEditTeam = (team: TeamWithManager) => {
+  const handleEditTeam = (team: TeamWithAdminDetails) => {
     setSelectedTeam(team);
     setIsEditModalOpen(true);
   };
@@ -86,7 +97,7 @@ export default function TeamsPage() {
   };
 
   // Handle opening Delete modal
-  const handleDeleteClick = (team: TeamWithManager) => {
+  const handleDeleteClick = (team: TeamWithAdminDetails) => {
     setSelectedTeam(team);
     setIsDeleteModalOpen(true);
   };
@@ -96,50 +107,49 @@ export default function TeamsPage() {
     setIsSaving(true);
     try {
       if (selectedTeam) {
-        // Update existing team - Currently mock update since API doesn't have PUT
-        // When API is ready: await fetch(`/api/teams/${selectedTeam.id}`, { method: 'PUT', body: JSON.stringify(formData) })
-        setTeams((prev) =>
-          prev.map((team) =>
-            team.id === selectedTeam.id
-              ? {
-                  ...team,
-                  name: formData.name,
-                  abbreviation: formData.abbreviation,
-                  primaryColor: formData.primaryColor,
-                  secondaryColor: formData.secondaryColor,
-                  isActive: formData.isActive,
-                }
-              : team
-          )
-        );
+        // Update existing team
+        const response = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setTeams((prev) =>
+            prev.map((team) =>
+              team.id === selectedTeam.id ? { ...team, ...data.data } : team
+            )
+          );
+          toast.success('Team updated successfully');
+        } else {
+          const errorData = await response.json();
+          toast.error(errorData.error?.message || 'Failed to update team');
+          return;
+        }
       } else {
-        // Create new team - Currently mock create since API doesn't have POST
-        // When API is ready: await fetch('/api/teams', { method: 'POST', body: JSON.stringify(formData) })
-        const newTeam: TeamWithManager = {
-          id: `team-${Date.now()}`,
-          name: formData.name,
-          abbreviation: formData.abbreviation,
-          primaryColor: formData.primaryColor,
-          secondaryColor: formData.secondaryColor,
-          isActive: formData.isActive,
-          logoUrl: null,
-          managerId: null,
-          seasonId: 'season-2026',
-          wins: 0,
-          losses: 0,
-          ties: 0,
-          runsScored: 0,
-          runsAllowed: 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          manager: null,
-        };
-        setTeams((prev) => [...prev, newTeam]);
+        // Create new team
+        const response = await fetch('/api/admin/teams', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setTeams((prev) => [...prev, { ...data.data, rosterCount: 0 }]);
+          toast.success('Team created successfully');
+        } else {
+          const errorData = await response.json();
+          toast.error(errorData.error?.message || 'Failed to create team');
+          return;
+        }
       }
       setIsEditModalOpen(false);
       setSelectedTeam(null);
-    } catch (error) {
-      console.error('Failed to save team:', error);
+    } catch (err) {
+      console.error('Failed to save team:', err);
+      toast.error('Failed to save team. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -151,13 +161,22 @@ export default function TeamsPage() {
 
     setIsSaving(true);
     try {
-      // Currently mock delete since API doesn't have DELETE
-      // When API is ready: await fetch(`/api/teams/${selectedTeam.id}`, { method: 'DELETE' })
-      setTeams((prev) => prev.filter((team) => team.id !== selectedTeam.id));
-      setIsDeleteModalOpen(false);
-      setSelectedTeam(null);
-    } catch (error) {
-      console.error('Failed to delete team:', error);
+      const response = await fetch(`/api/admin/teams/${selectedTeam.id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok || response.status === 204) {
+        setTeams((prev) => prev.filter((team) => team.id !== selectedTeam.id));
+        toast.success('Team deleted successfully');
+        setIsDeleteModalOpen(false);
+        setSelectedTeam(null);
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error?.message || 'Failed to delete team');
+      }
+    } catch (err) {
+      console.error('Failed to delete team:', err);
+      toast.error('Failed to delete team. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -166,8 +185,7 @@ export default function TeamsPage() {
   // Stats calculations
   const activeTeams = teams.filter((t) => t.isActive);
   const totalPlayers = teams.reduce((sum, t) => {
-    // Calculate based on roster data when available
-    return sum + 15; // Placeholder average
+    return sum + (t.rosterCount || 0);
   }, 0);
   const teamsWithoutManager = teams.filter((t) => !t.managerId).length;
 

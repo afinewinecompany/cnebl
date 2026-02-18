@@ -12,6 +12,7 @@ interface UserData {
   id: string;
   email: string;
   fullName: string;
+  playerId: string | null;
   teamId: string | null;
   teamName: string | null;
   jerseyNumber: string | null;
@@ -43,6 +44,7 @@ interface PlayerAssignmentProps {
     throws: ThrowingArm;
     isCaptain: boolean;
   }) => void;
+  isLoading?: boolean;
 }
 
 const FIELD_POSITIONS: FieldPosition[] = [
@@ -71,6 +73,7 @@ export function PlayerAssignment({
   user,
   teams,
   onSave,
+  isLoading = false,
 }: PlayerAssignmentProps) {
   const [teamId, setTeamId] = useState<string>('');
   const [jerseyNumber, setJerseyNumber] = useState<string>('');
@@ -376,12 +379,12 @@ export function PlayerAssignment({
 
         {/* Footer */}
         <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex items-center justify-end gap-3 rounded-b-xl">
-          <Button type="button" variant="ghost" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button type="submit" variant="default" onClick={handleSubmit}>
+          <Button type="submit" variant="default" onClick={handleSubmit} disabled={isLoading}>
             <Shield className="w-4 h-4 mr-2" />
-            Assign Player
+            {isLoading ? 'Saving...' : (user.teamId ? 'Update Player' : 'Assign Player')}
           </Button>
         </div>
       </div>

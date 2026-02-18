@@ -22,6 +22,7 @@ interface UserData {
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+  playerId: string | null;
   teamId: string | null;
   teamName: string | null;
   jerseyNumber: string | null;

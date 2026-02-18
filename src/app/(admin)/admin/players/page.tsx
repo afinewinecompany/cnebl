@@ -1,22 +1,24 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { PlayerTable, PlayerAssignment } from '@/components/admin';
-import { Users, Filter, Download, UserPlus } from 'lucide-react';
+import { Users, Filter, Download, UserPlus, RefreshCw } from 'lucide-react';
 import type { UserRole, FieldPosition, BattingSide, ThrowingArm } from '@/types/database.types';
 
-// Mock users data
-export interface MockUser {
+// User with assignment data from API
+export interface UserWithAssignment {
   id: string;
   email: string;
   fullName: string;
   role: UserRole;
   isActive: boolean;
   createdAt: string;
+  playerId: string | null;
   teamId: string | null;
   teamName: string | null;
   jerseyNumber: string | null;
@@ -27,42 +29,13 @@ export interface MockUser {
   isCaptain: boolean;
 }
 
-// Mock teams for assignment
-export interface MockTeam {
+// Team for assignment dropdown
+export interface TeamOption {
   id: string;
   name: string;
   abbreviation: string;
   primaryColor: string;
 }
-
-const mockTeams: MockTeam[] = [
-  { id: 'rays', name: 'Rays', abbreviation: 'RAY', primaryColor: '#092C5C' },
-  { id: 'pirates', name: 'Pirates', abbreviation: 'PIR', primaryColor: '#27251F' },
-  { id: 'athletics', name: 'Athletics', abbreviation: 'ATH', primaryColor: '#003831' },
-  { id: 'mariners', name: 'Mariners', abbreviation: 'MAR', primaryColor: '#0C2C56' },
-  { id: 'rockies', name: 'Rockies', abbreviation: 'ROC', primaryColor: '#33006F' },
-  { id: 'diamondbacks', name: 'Diamondbacks', abbreviation: 'DBK', primaryColor: '#A71930' },
-];
-
-const mockUsers: MockUser[] = [
-  // Assigned players
-  { id: '1', email: 'ben.douglas@email.com', fullName: 'Ben Douglas', role: 'player', isActive: true, createdAt: '2024-01-15', teamId: 'athletics', teamName: 'Athletics', jerseyNumber: '7', primaryPosition: 'SS', secondaryPosition: '2B', bats: 'R', throws: 'R', isCaptain: true },
-  { id: '2', email: 'keegan.taylor@email.com', fullName: 'Keegan Taylor', role: 'player', isActive: true, createdAt: '2024-01-20', teamId: 'mariners', teamName: 'Mariners', jerseyNumber: '21', primaryPosition: 'P', secondaryPosition: null, bats: 'L', throws: 'L', isCaptain: false },
-  { id: '3', email: 'jesse.hill@email.com', fullName: 'Jesse Hill', role: 'manager', isActive: true, createdAt: '2024-02-01', teamId: 'pirates', teamName: 'Pirates', jerseyNumber: '12', primaryPosition: 'P', secondaryPosition: 'CF', bats: 'R', throws: 'R', isCaptain: true },
-  { id: '4', email: 'ryan.costa@email.com', fullName: 'Ryan Costa', role: 'player', isActive: true, createdAt: '2024-02-10', teamId: 'rays', teamName: 'Rays', jerseyNumber: '45', primaryPosition: 'P', secondaryPosition: null, bats: 'R', throws: 'R', isCaptain: false },
-  { id: '5', email: 'dave.nieves@email.com', fullName: 'Dave Nieves', role: 'player', isActive: true, createdAt: '2024-02-15', teamId: 'athletics', teamName: 'Athletics', jerseyNumber: '33', primaryPosition: 'P', secondaryPosition: 'LF', bats: 'S', throws: 'R', isCaptain: false },
-  { id: '6', email: 'eddie.brown@email.com', fullName: 'Eddie Brown', role: 'player', isActive: true, createdAt: '2024-03-01', teamId: 'diamondbacks', teamName: 'Diamondbacks', jerseyNumber: '8', primaryPosition: 'P', secondaryPosition: null, bats: 'R', throws: 'R', isCaptain: false },
-  { id: '7', email: 'jj.brigham@email.com', fullName: 'JJ Brigham', role: 'player', isActive: true, createdAt: '2024-03-05', teamId: 'rockies', teamName: 'Rockies', jerseyNumber: '15', primaryPosition: 'P', secondaryPosition: '2B', bats: 'R', throws: 'R', isCaptain: false },
-  { id: '8', email: 'drew.marcotte@email.com', fullName: 'Drew Marcotte', role: 'player', isActive: true, createdAt: '2024-03-10', teamId: 'mariners', teamName: 'Mariners', jerseyNumber: '3', primaryPosition: 'C', secondaryPosition: 'P', bats: 'R', throws: 'R', isCaptain: true },
-  // Unassigned players
-  { id: '9', email: 'john.smith@email.com', fullName: 'John Smith', role: 'player', isActive: true, createdAt: '2024-03-15', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '10', email: 'mike.johnson@email.com', fullName: 'Mike Johnson', role: 'player', isActive: true, createdAt: '2024-03-20', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '11', email: 'tom.wilson@email.com', fullName: 'Tom Wilson', role: 'player', isActive: true, createdAt: '2024-03-25', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '12', email: 'chris.davis@email.com', fullName: 'Chris Davis', role: 'player', isActive: true, createdAt: '2024-04-01', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '13', email: 'james.martinez@email.com', fullName: 'James Martinez', role: 'player', isActive: false, createdAt: '2024-04-05', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '14', email: 'admin@cnebl.com', fullName: 'League Admin', role: 'admin', isActive: true, createdAt: '2023-01-01', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-  { id: '15', email: 'commissioner@cnebl.com', fullName: 'Commissioner', role: 'commissioner', isActive: true, createdAt: '2023-01-01', teamId: null, teamName: null, jerseyNumber: null, primaryPosition: null, secondaryPosition: null, bats: null, throws: null, isCaptain: false },
-];
 
 type FilterType = 'all' | 'assigned' | 'unassigned';
 type RoleFilter = 'all' | UserRole;
@@ -73,13 +46,59 @@ type RoleFilter = 'all' | UserRole;
  * Admin page to view, filter, and manage player team assignments.
  */
 export default function PlayersPage() {
-  const [users, setUsers] = useState<MockUser[]>(mockUsers);
+  const [users, setUsers] = useState<UserWithAssignment[]>([]);
+  const [teams, setTeams] = useState<TeamOption[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [teamFilter, setTeamFilter] = useState<string>('all');
-  const [selectedUser, setSelectedUser] = useState<MockUser | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithAssignment | null>(null);
   const [isAssignmentOpen, setIsAssignmentOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch users and teams from API
+  const fetchData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+
+      // Fetch users and teams in parallel
+      const [usersRes, teamsRes] = await Promise.all([
+        fetch('/api/admin/users'),
+        fetch('/api/teams'),
+      ]);
+
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        setUsers(usersData.data || []);
+      } else {
+        console.error('Failed to fetch users');
+      }
+
+      if (teamsRes.ok) {
+        const teamsData = await teamsRes.json();
+        setTeams(
+          (teamsData.data || []).map((t: TeamOption & { primaryColor?: string | null }) => ({
+            id: t.id,
+            name: t.name,
+            abbreviation: t.abbreviation,
+            primaryColor: t.primaryColor || '#374151',
+          }))
+        );
+      } else {
+        console.error('Failed to fetch teams');
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+      toast.error('Failed to load data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Filter users based on search and filters
   const filteredUsers = useMemo(() => {
@@ -117,32 +136,51 @@ export default function PlayersPage() {
     active: users.filter((u) => u.isActive).length,
   }), [users]);
 
-  const handleAssignPlayer = (user: MockUser) => {
+  const handleAssignPlayer = (user: UserWithAssignment) => {
     setSelectedUser(user);
     setIsAssignmentOpen(true);
   };
 
-  const handleRemoveFromTeam = (userId: string) => {
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === userId
-          ? {
-              ...user,
-              teamId: null,
-              teamName: null,
-              jerseyNumber: null,
-              primaryPosition: null,
-              secondaryPosition: null,
-              bats: null,
-              throws: null,
-              isCaptain: false,
-            }
-          : user
-      )
-    );
+  const handleRemoveFromTeam = async (userId: string) => {
+    const user = users.find((u) => u.id === userId);
+    if (!user?.playerId) return;
+
+    try {
+      const response = await fetch(`/api/admin/players/${user.playerId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok || response.status === 204) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId
+              ? {
+                  ...u,
+                  playerId: null,
+                  teamId: null,
+                  teamName: null,
+                  jerseyNumber: null,
+                  primaryPosition: null,
+                  secondaryPosition: null,
+                  bats: null,
+                  throws: null,
+                  isCaptain: false,
+                }
+              : u
+          )
+        );
+        toast.success('Player removed from team');
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error?.message || 'Failed to remove player');
+      }
+    } catch (error) {
+      console.error('Failed to remove player:', error);
+      toast.error('Failed to remove player');
+    }
   };
 
-  const handleSaveAssignment = (data: {
+  const handleSaveAssignment = async (data: {
     teamId: string;
     jerseyNumber: string;
     primaryPosition: FieldPosition;
@@ -153,26 +191,89 @@ export default function PlayersPage() {
   }) => {
     if (!selectedUser) return;
 
-    const team = mockTeams.find((t) => t.id === data.teamId);
-    setUsers((prev) =>
-      prev.map((user) =>
-        user.id === selectedUser.id
-          ? {
-              ...user,
-              teamId: data.teamId,
-              teamName: team?.name || null,
-              jerseyNumber: data.jerseyNumber,
-              primaryPosition: data.primaryPosition,
-              secondaryPosition: data.secondaryPosition,
-              bats: data.bats,
-              throws: data.throws,
-              isCaptain: data.isCaptain,
-            }
-          : user
-      )
-    );
-    setIsAssignmentOpen(false);
-    setSelectedUser(null);
+    setIsSaving(true);
+    try {
+      const team = teams.find((t) => t.id === data.teamId);
+
+      if (selectedUser.playerId) {
+        // Update existing assignment
+        const response = await fetch(`/api/admin/players/${selectedUser.playerId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+          setUsers((prev) =>
+            prev.map((user) =>
+              user.id === selectedUser.id
+                ? {
+                    ...user,
+                    teamId: data.teamId,
+                    teamName: team?.name || null,
+                    jerseyNumber: data.jerseyNumber,
+                    primaryPosition: data.primaryPosition,
+                    secondaryPosition: data.secondaryPosition,
+                    bats: data.bats,
+                    throws: data.throws,
+                    isCaptain: data.isCaptain,
+                  }
+                : user
+            )
+          );
+          toast.success('Player updated successfully');
+        } else {
+          const errorData = await response.json();
+          toast.error(errorData.error?.message || 'Failed to update player');
+          return;
+        }
+      } else {
+        // Create new assignment
+        const response = await fetch('/api/admin/players', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: selectedUser.id,
+            ...data,
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          setUsers((prev) =>
+            prev.map((user) =>
+              user.id === selectedUser.id
+                ? {
+                    ...user,
+                    playerId: result.data?.id || `player-${Date.now()}`,
+                    teamId: data.teamId,
+                    teamName: team?.name || null,
+                    jerseyNumber: data.jerseyNumber,
+                    primaryPosition: data.primaryPosition,
+                    secondaryPosition: data.secondaryPosition,
+                    bats: data.bats,
+                    throws: data.throws,
+                    isCaptain: data.isCaptain,
+                  }
+                : user
+            )
+          );
+          toast.success('Player assigned successfully');
+        } else {
+          const errorData = await response.json();
+          toast.error(errorData.error?.message || 'Failed to assign player');
+          return;
+        }
+      }
+
+      setIsAssignmentOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Failed to save assignment:', error);
+      toast.error('Failed to save assignment');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Export users to CSV
@@ -220,6 +321,23 @@ export default function PlayersPage() {
     URL.revokeObjectURL(url);
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
+          <div className="h-10 w-32 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-24 bg-gray-200 rounded-lg animate-pulse" />
+          ))}
+        </div>
+        <div className="h-64 bg-gray-200 rounded-lg animate-pulse" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -233,6 +351,10 @@ export default function PlayersPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={fetchData}>
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="w-4 h-4 mr-2" />
             Export
@@ -378,7 +500,7 @@ export default function PlayersPage() {
               >
                 <option value="all">All Teams</option>
                 <option value="unassigned">Unassigned</option>
-                {mockTeams.map((team) => (
+                {teams.map((team) => (
                   <option key={team.id} value={team.id}>
                     {team.name}
                   </option>
@@ -422,8 +544,9 @@ export default function PlayersPage() {
             setSelectedUser(null);
           }}
           user={selectedUser}
-          teams={mockTeams}
+          teams={teams}
           onSave={handleSaveAssignment}
+          isLoading={isSaving}
         />
       )}
     </div>

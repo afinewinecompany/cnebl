@@ -11,4 +11,5 @@ export * from './announcements';
 export * from './scoring';
 export * from './seasons';
 export * from './admin-games';
+export * from './admin-users';
 export * from './game-stats';

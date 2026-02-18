@@ -25,3 +25,7 @@ export { GameCalendar, GameCalendarCompact } from './GameCalendar';
 export { TeamEditModal } from './TeamEditModal';
 export type { TeamFormData } from './TeamEditModal';
 export { DeleteConfirmModal } from './DeleteConfirmModal';
+
+// Announcement Management Components
+export { AnnouncementEditModal } from './AnnouncementEditModal';
+export type { AnnouncementFormData } from './AnnouncementEditModal';
