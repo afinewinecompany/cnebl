@@ -105,14 +105,14 @@ export function PitchingStatsForm({
 }: PitchingStatsFormProps) {
   // Initialize entries from roster and existing stats
   const initialEntries = useMemo(() => {
-    // Only show pitchers or players with existing stats
+    // Only show pitchers marked as pitchers OR players with existing stats
     const pitcherIds = new Set([
       ...roster.filter((p) => p.isPitcher).map((p) => p.playerId),
       ...existingStats.map((s) => s.playerId),
     ]);
 
     return roster
-      .filter((player) => pitcherIds.has(player.playerId) || existingStats.length === 0)
+      .filter((player) => pitcherIds.has(player.playerId))
       .map((player) => {
         const existing = existingStats.find((s) => s.playerId === player.playerId);
         return {
@@ -145,9 +145,9 @@ export function PitchingStatsForm({
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null);
   const [showAddPitcher, setShowAddPitcher] = useState(false);
 
-  // Get non-selected pitchers for adding
+  // Get players available to add as pitchers (not already selected)
   const availablePitchers = roster.filter(
-    (p) => !entries.some((e) => e.playerId === p.playerId)
+    (p) => !entries.some((e) => e.playerId === p.playerId && e.isSelected)
   );
 
   // Validate a single entry
@@ -215,31 +215,50 @@ export function PitchingStatsForm({
 
   // Add a pitcher from the roster
   const addPitcher = useCallback((player: typeof roster[0]) => {
-    setEntries((prev) => [
-      ...prev,
-      {
-        playerId: player.playerId,
-        playerName: player.playerName,
-        jerseyNumber: player.jerseyNumber,
-        isSelected: true,
-        hasChanges: true,
-        isStarter: prev.filter((e) => e.isSelected).length === 0, // First pitcher is starter
-        decision: null,
-        inningsPitched: 0,
-        hitsAllowed: 0,
-        runsAllowed: 0,
-        earnedRuns: 0,
-        walks: 0,
-        strikeouts: 0,
-        homeRunsAllowed: 0,
-        battersFaced: 0,
-        pitchesThrown: null,
-        strikes: null,
-        hitBatters: 0,
-        wildPitches: 0,
-        balks: 0,
-      },
-    ]);
+    setEntries((prev) => {
+      // Check if player already exists in entries (but not selected)
+      const existingIndex = prev.findIndex((e) => e.playerId === player.playerId);
+
+      if (existingIndex >= 0) {
+        // Player exists, just select them
+        return prev.map((entry, i) => {
+          if (i !== existingIndex) return entry;
+          return {
+            ...entry,
+            isSelected: true,
+            hasChanges: true,
+            isStarter: prev.filter((e) => e.isSelected).length === 0,
+          };
+        });
+      }
+
+      // Player doesn't exist, add new entry
+      return [
+        ...prev,
+        {
+          playerId: player.playerId,
+          playerName: player.playerName,
+          jerseyNumber: player.jerseyNumber,
+          isSelected: true,
+          hasChanges: true,
+          isStarter: prev.filter((e) => e.isSelected).length === 0, // First pitcher is starter
+          decision: null,
+          inningsPitched: 0,
+          hitsAllowed: 0,
+          runsAllowed: 0,
+          earnedRuns: 0,
+          walks: 0,
+          strikeouts: 0,
+          homeRunsAllowed: 0,
+          battersFaced: 0,
+          pitchesThrown: null,
+          strikes: null,
+          hitBatters: 0,
+          wildPitches: 0,
+          balks: 0,
+        },
+      ];
+    });
     setShowAddPitcher(false);
   }, []);
 
