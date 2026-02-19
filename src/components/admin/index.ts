@@ -14,12 +14,27 @@ export { BattingStatsForm } from './BattingStatsForm';
 export type { BattingStatsEntry } from './BattingStatsForm';
 export { PitchingStatsForm } from './PitchingStatsForm';
 export type { PitchingStatsEntry } from './PitchingStatsForm';
+export { ResultTypeSelector } from './ResultTypeSelector';
+export type { ResultTypeSelectorProps } from './ResultTypeSelector';
+export { OutNotationInput } from './OutNotationInput';
+export { PlateAppearanceEntry } from './PlateAppearanceEntry';
+export type { PlateAppearanceEntryProps } from './PlateAppearanceEntry';
+export { PlateAppearanceList } from './PlateAppearanceList';
+export type { PlateAppearanceListProps } from './PlateAppearanceList';
+export { GameTotalsEntry } from './GameTotalsEntry';
+export type { GameTotalsEntryProps } from './GameTotalsEntry';
+export { PlayerBattingCard } from './PlayerBattingCard';
+export type { PlayerBattingCardProps } from './PlayerBattingCard';
+export { PlayerStatsForm } from './PlayerStatsForm';
+export type { PlayerBattingEntry } from './PlayerStatsForm';
 
 // Game Management Components
 export { GameForm } from './GameForm';
 export type { GameFormData, SeriesGameData } from './GameForm';
 export { GameStatusBadge, getStatusColor } from './GameStatusBadge';
 export { GameCalendar, GameCalendarCompact } from './GameCalendar';
+export { ScoreEntryCard } from './ScoreEntryCard';
+export type { ScoreEntryCardProps } from './ScoreEntryCard';
 
 // Team Management Components
 export { TeamEditModal } from './TeamEditModal';

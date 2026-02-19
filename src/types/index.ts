@@ -44,3 +44,6 @@ export type { User as DbUser } from './database.types';
 
 // API types
 export * from './api.types';
+
+// Plate appearance types
+export * from './plate-appearance.types';
