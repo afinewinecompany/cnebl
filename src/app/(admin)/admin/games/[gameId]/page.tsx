@@ -18,13 +18,9 @@ import {
   Trash2,
   PauseCircle,
   XCircle,
-  Play,
   BarChart3,
-  Save,
   Loader2,
   AlertTriangle,
-  CheckCircle,
-  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { GameWithTeams, TeamWithManager, GameStatus } from '@/types';
@@ -317,22 +313,12 @@ export default function GameDetailPage({ params }: PageProps) {
             </Button>
           )}
 
-          {/* Stats entry link - only for final games */}
-          {game.status === 'final' && (
+          {/* Scorebook link - for scheduled and final games */}
+          {['scheduled', 'final'].includes(game.status) && (
             <Button asChild>
-              <Link href={`/admin/games/${gameId}/stats`}>
+              <Link href={`/admin/games/${gameId}/scorebook`}>
                 <BarChart3 className="w-4 h-4 mr-2" />
-                Enter Stats
-              </Link>
-            </Button>
-          )}
-
-          {/* Live scoring link - for in_progress games */}
-          {game.status === 'in_progress' && (
-            <Button asChild variant="danger">
-              <Link href={`/scoring/${gameId}`}>
-                <Play className="w-4 h-4 mr-2" />
-                Live Scoring
+                {game.status === 'final' ? 'Edit Stats' : 'Score Game'}
               </Link>
             </Button>
           )}
@@ -491,12 +477,12 @@ export default function GameDetailPage({ params }: PageProps) {
                 </Button>
               )}
 
-              {/* Start game - for scheduled games */}
-              {game.status === 'scheduled' && (
+              {/* Score game - enter post-game stats */}
+              {['scheduled', 'final'].includes(game.status) && (
                 <Button variant="success" className="w-full justify-start" asChild>
-                  <Link href={`/scoring/${gameId}`}>
-                    <Play className="w-4 h-4 mr-2" />
-                    Start Game
+                  <Link href={`/admin/games/${gameId}/scorebook`}>
+                    <BarChart3 className="w-4 h-4 mr-2" />
+                    {game.status === 'final' ? 'Edit Stats' : 'Score Game'}
                   </Link>
                 </Button>
               )}
