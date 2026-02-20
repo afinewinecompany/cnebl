@@ -17,7 +17,7 @@
  * />
  */
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ChannelTabs } from "./channels/ChannelTabs";
@@ -122,6 +122,9 @@ export function TeamMessengerContainer({
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  // Ref to track pending channel fetch to handle race conditions
+  const pendingChannelFetchRef = useRef<ChannelType | null>(null);
 
   // ==========================================================================
   // Computed
@@ -234,19 +237,33 @@ export function TeamMessengerContainer({
         setIsLoading(true);
         setError(null);
 
+        // Track this fetch request to handle race conditions when user rapidly switches channels
+        pendingChannelFetchRef.current = channel;
+
         try {
           const messages = await fetchChannelMessages(channel);
 
-          setChannelMessages((prev) => ({
-            ...prev,
-            [channel]: messages,
-          }));
+          // Only update state if this is still the pending fetch (user hasn't switched away)
+          if (pendingChannelFetchRef.current === channel) {
+            setChannelMessages((prev) => ({
+              ...prev,
+              [channel]: messages,
+            }));
 
-          setLoadedChannels((prev) => new Set([...prev, channel]));
+            setLoadedChannels((prev) => new Set([...prev, channel]));
+            pendingChannelFetchRef.current = null;
+          }
         } catch (err) {
-          setError("Failed to load messages");
+          // Only show error if this is still the pending fetch
+          if (pendingChannelFetchRef.current === channel) {
+            setError("Failed to load messages");
+            pendingChannelFetchRef.current = null;
+          }
         } finally {
-          setIsLoading(false);
+          // Only clear loading state if this is still the pending fetch
+          if (pendingChannelFetchRef.current === channel || pendingChannelFetchRef.current === null) {
+            setIsLoading(false);
+          }
         }
       }
 
@@ -401,19 +418,27 @@ export function TeamMessengerContainer({
   useEffect(() => {
     if (currentMessages.length === 0) return;
 
+    // Capture the channel at effect setup time to avoid race conditions
+    const channelToFetch = activeChannel;
+    let isCancelled = false;
+
     const poll = async () => {
       try {
-        const messages = await fetchChannelMessages(activeChannel);
+        const messages = await fetchChannelMessages(channelToFetch);
 
-        // Merge new messages
+        // Check if the effect was cancelled (channel changed) before updating state
+        if (isCancelled) return;
+
+        // Merge new messages - use channelToFetch (captured at setup time)
+        // instead of activeChannel to prevent message leakage between channels
         setChannelMessages((prev) => {
-          const existingIds = new Set(prev[activeChannel].map((m) => m.id));
+          const existingIds = new Set(prev[channelToFetch].map((m) => m.id));
           const newMessages = messages.filter((m) => !existingIds.has(m.id));
 
           if (newMessages.length > 0) {
             return {
               ...prev,
-              [activeChannel]: [...newMessages, ...prev[activeChannel]],
+              [channelToFetch]: [...newMessages, ...prev[channelToFetch]],
             };
           }
           return prev;
@@ -424,7 +449,10 @@ export function TeamMessengerContainer({
     };
 
     const interval = setInterval(poll, DEFAULT_POLL_INTERVAL);
-    return () => clearInterval(interval);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
   }, [activeChannel, currentMessages.length, fetchChannelMessages]);
 
   // ==========================================================================

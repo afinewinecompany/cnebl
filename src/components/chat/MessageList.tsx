@@ -126,9 +126,14 @@ export function MessageList({
   }, [messages.length]);
 
   // Scroll to bottom when new messages arrive (if auto-scroll is enabled)
+  // Use scrollTop instead of scrollIntoView to avoid scrolling the entire page
   useEffect(() => {
-    if (shouldAutoScroll && bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (shouldAutoScroll && scrollContainerRef.current) {
+      const container = scrollContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [messages.length, shouldAutoScroll]);
 
@@ -285,7 +290,12 @@ export function MessageList({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 10 }}
           onClick={() => {
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollTo({
+                top: scrollContainerRef.current.scrollHeight,
+                behavior: "smooth",
+              });
+            }
             setShouldAutoScroll(true);
           }}
           className={cn(

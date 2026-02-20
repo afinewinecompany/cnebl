@@ -14,7 +14,6 @@ import {
   Settings,
   User,
   CheckCircle,
-  MessageSquare,
 } from 'lucide-react';
 import { getRoleDisplayName } from '@/types/auth';
 import { DashboardAnnouncements } from './DashboardAnnouncements';
@@ -89,13 +88,6 @@ export default async function DashboardPage() {
             icon: Users,
             href: `/teams/${user.teamId}`,
             color: 'bg-navy-light',
-          },
-          {
-            title: 'Team Chat',
-            description: 'Chat with teammates',
-            icon: MessageSquare,
-            href: '/chat',
-            color: 'bg-leather',
           },
         ]
       : []),
