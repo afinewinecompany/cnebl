@@ -15,7 +15,9 @@ import {
   battingStats,
   pitchingStats,
 } from "@/lib/mock-data";
+import type { RosterPlayer, Position, BatsThrows } from "@/lib/mock-data";
 import { getTeamById, getTeamRoster } from "@/lib/db/queries";
+import type { PlayerWithDetails } from "@/types";
 import {
   ChevronLeft,
   Calendar,
@@ -52,25 +54,54 @@ export default async function TeamPage({ params }: TeamPageProps) {
   const rosterData = isUUID
     ? await getTeamRoster(teamId)
     : null;
-  const roster = isUUID
-    ? (rosterData?.players || [])
+
+  // Normalize roster to RosterPlayer format
+  const normalizeDbRoster = (players: PlayerWithDetails[]): RosterPlayer[] => {
+    return players.map((p) => ({
+      id: p.id,
+      teamId: p.teamId,
+      jerseyNumber: p.jerseyNumber ? parseInt(p.jerseyNumber, 10) : 0,
+      name: p.user.fullName || 'Unknown Player',
+      position: p.primaryPosition as Position,
+      batsThrows: `${p.bats}/${p.throws}` as BatsThrows,
+    }));
+  };
+
+  const roster: RosterPlayer[] = isUUID
+    ? normalizeDbRoster(rosterData?.players || [])
     : getRosterByTeamId(teamId);
 
   // Games are only available for mock data teams for now
   const allGames = isUUID ? [] : getGamesByTeam(teamId);
 
   // Normalize team object structure for rendering
+  const wins = 'wins' in team ? team.wins : 0;
+  const losses = 'losses' in team ? team.losses : 0;
+
+  // Extract manager name - handle both string (mock) and user object (database)
+  const getManagerName = (): string => {
+    if (!('manager' in team)) return 'TBD';
+    const mgr = team.manager;
+    if (typeof mgr === 'string') return mgr;
+    if (mgr && typeof mgr === 'object' && 'fullName' in mgr) return mgr.fullName || 'TBD';
+    return 'TBD';
+  };
+
   const normalizedTeam = {
     id: team.id,
     name: team.name,
     abbreviation: team.abbreviation,
     primaryColor: team.primaryColor || '#1B3A5F',
     secondaryColor: team.secondaryColor || '#6B7280',
-    wins: 'wins' in team ? team.wins : 0,
-    losses: 'losses' in team ? team.losses : 0,
+    wins,
+    losses,
     ties: 'ties' in team ? team.ties : 0,
-    runsScored: 'runsScored' in team ? team.runsScored : 0,
-    runsAllowed: 'runsAllowed' in team ? team.runsAllowed : 0,
+    gamesPlayed: wins + losses,
+    runsFor: 'runsScored' in team ? team.runsScored : ('runsFor' in team ? team.runsFor : 0),
+    runsAgainst: 'runsAllowed' in team ? team.runsAllowed : ('runsAgainst' in team ? team.runsAgainst : 0),
+    manager: getManagerName(),
+    homeField: 'homeField' in team ? team.homeField : 'TBD',
+    founded: 'founded' in team ? team.founded : new Date().getFullYear(),
   };
 
   // Separate upcoming and recent games
