@@ -30,11 +30,26 @@ export function ForgotPasswordForm({ className }: ForgotPasswordFormProps) {
     setIsLoading(true);
 
     try {
-      // TODO: Call password reset API endpoint
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call password reset API endpoint
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
 
-      // Show success state
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (response.status === 429) {
+          throw new Error('Too many attempts. Please try again later.');
+        }
+        throw new Error(data.error?.message || 'An error occurred. Please try again.');
+      }
+
+      // Show success state (always shown for security, even if email doesn't exist)
       setIsSuccess(true);
     } catch (err) {
       setError(

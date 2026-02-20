@@ -13,3 +13,4 @@ export * from './seasons';
 export * from './admin-games';
 export * from './admin-users';
 export * from './game-stats';
+export * from './users';

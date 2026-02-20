@@ -1,6 +1,6 @@
 /**
- * User Registration API Route
- * POST /api/auth/register - Create a new user account
+ * Reset Password API Route
+ * POST /api/auth/reset-password - Reset password with a valid token
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,42 +12,32 @@ import {
   rateLimitHeaders,
   RATE_LIMITS,
 } from '@/lib/api/rate-limit';
-import { sanitizeName, sanitizeEmail } from '@/lib/api/sanitize';
 import {
-  findUserByEmail,
-  createUser,
-  sendVerificationEmail,
+  validatePasswordResetToken,
+  invalidatePasswordResetToken,
+  updateUserPassword,
 } from '@/lib/db/queries/users';
 
 /**
  * Password requirements schema
- * - At least 10 characters
+ * - At least 8 characters (matching frontend requirements)
  * - One uppercase letter
  * - One lowercase letter
  * - One number
- * - One special character
  */
 const passwordSchema = z
   .string()
-  .min(10, 'Password must be at least 10 characters')
+  .min(8, 'Password must be at least 8 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(
-    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
-    'Password must contain at least one special character'
-  );
+  .regex(/[0-9]/, 'Password must contain at least one number');
 
 /**
- * Registration request schema
+ * Reset password request schema
  */
-const registerSchema = z
+const resetPasswordSchema = z
   .object({
-    name: z
-      .string()
-      .min(2, 'Name must be at least 2 characters')
-      .max(100, 'Name cannot exceed 100 characters'),
-    email: z.string().email('Invalid email address'),
+    token: z.string().min(1, 'Reset token is required'),
     password: passwordSchema,
     confirmPassword: z.string(),
   })
@@ -57,22 +47,20 @@ const registerSchema = z
   });
 
 /**
- * POST /api/auth/register
+ * POST /api/auth/reset-password
  *
- * Create a new user account.
+ * Reset a user's password using a valid reset token.
  *
  * Request body:
  * {
- *   "name": "Full Name",
- *   "email": "user@example.com",
- *   "password": "SecureP@ssw0rd!",
- *   "confirmPassword": "SecureP@ssw0rd!"
+ *   "token": "reset-token-from-email",
+ *   "password": "NewSecureP@ssw0rd!",
+ *   "confirmPassword": "NewSecureP@ssw0rd!"
  * }
  *
  * Response:
- * - 201: User created successfully
- * - 400: Validation error
- * - 409: Email already exists
+ * - 200: Password reset successful
+ * - 400: Validation error or invalid/expired token
  * - 429: Rate limit exceeded
  * - 500: Server error
  */
@@ -81,8 +69,8 @@ export async function POST(request: NextRequest) {
     // Rate limiting
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = checkRateLimit(
-      `register:${clientIP}`,
-      RATE_LIMITS.register
+      `reset-password:${clientIP}`,
+      RATE_LIMITS.passwordReset
     );
 
     if (!rateLimitResult.allowed) {
@@ -91,7 +79,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'RATE_LIMIT_EXCEEDED',
-            message: 'Too many registration attempts. Please try again later.',
+            message: 'Too many password reset attempts. Please try again later.',
           },
         },
         {
@@ -119,7 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate request body
-    const validation = registerSchema.safeParse(body);
+    const validation = resetPasswordSchema.safeParse(body);
     if (!validation.success) {
       const errors: Record<string, string[]> = {};
       for (const issue of validation.error.issues) {
@@ -135,7 +123,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: {
             code: 'VALIDATION_ERROR',
-            message: 'Invalid registration data',
+            message: 'Invalid password reset data',
             details: errors,
           },
         },
@@ -143,71 +131,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sanitize inputs
-    const sanitizedName = sanitizeName(validation.data.name);
-    const sanitizedEmail = sanitizeEmail(validation.data.email);
+    const { token, password } = validation.data;
 
-    if (!sanitizedEmail) {
+    // Validate the reset token
+    const tokenData = await validatePasswordResetToken(token);
+
+    if (!tokenData) {
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: 'INVALID_EMAIL',
-            message: 'Invalid email address format',
+            code: 'INVALID_TOKEN',
+            message: 'This password reset link is invalid or has expired. Please request a new one.',
           },
         },
         { status: 400 }
       );
     }
 
-    // Check if email already exists in database
-    const existingUser = await findUserByEmail(sanitizedEmail);
-    if (existingUser) {
+    // Hash the new password
+    const passwordHash = await hashPassword(password);
+
+    // Update the user's password
+    const updated = await updateUserPassword(tokenData.userId, passwordHash);
+
+    if (!updated) {
       return NextResponse.json(
         {
           success: false,
           error: {
-            code: 'EMAIL_EXISTS',
-            message: 'An account with this email already exists',
+            code: 'UPDATE_FAILED',
+            message: 'Failed to update password. Please try again.',
           },
         },
-        { status: 409 }
+        { status: 500 }
       );
     }
 
-    // Hash password
-    const passwordHash = await hashPassword(validation.data.password);
+    // Invalidate the reset token so it can't be reused
+    await invalidatePasswordResetToken(token);
 
-    // Create user in mock database
-    const newUser = await createUser({
-      email: sanitizedEmail,
-      passwordHash,
-      fullName: sanitizedName,
-      role: 'player', // Default role for new registrations
-    });
-
-    // Send verification email (mock implementation logs to console)
-    await sendVerificationEmail(newUser.email, newUser.id);
+    console.log(`[API] Password reset successful for user: ${tokenData.userId} (${tokenData.email})`);
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          message: 'Registration successful. Please check your email to verify your account.',
-          user: {
-            id: newUser.id,
-            name: newUser.fullName,
-            email: newUser.email,
-          },
+          message: 'Your password has been successfully reset. You can now log in with your new password.',
         },
       },
       {
-        status: 201,
+        status: 200,
         headers: rateLimitHeaders(rateLimitResult),
       }
     );
   } catch (error) {
-    console.error('[API] POST /api/auth/register error:', error);
+    console.error('[API] POST /api/auth/reset-password error:', error);
     return NextResponse.json(
       {
         success: false,

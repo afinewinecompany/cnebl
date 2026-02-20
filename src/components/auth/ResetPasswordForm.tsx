@@ -126,9 +126,31 @@ export function ResetPasswordForm({ className }: ResetPasswordFormProps) {
     setIsLoading(true);
 
     try {
-      // TODO: Call password reset API endpoint with token
-      // For now, simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      // Call password reset API endpoint with token
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          password,
+          confirmPassword,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific error codes
+        if (response.status === 429) {
+          throw new Error('Too many attempts. Please try again later.');
+        }
+        if (data.error?.code === 'INVALID_TOKEN') {
+          throw new Error('This password reset link is invalid or has expired. Please request a new one.');
+        }
+        throw new Error(data.error?.message || 'An error occurred. Please try again.');
+      }
 
       // Show success state
       setIsSuccess(true);

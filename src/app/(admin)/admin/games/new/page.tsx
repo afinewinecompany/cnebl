@@ -17,29 +17,49 @@ import toast from 'react-hot-toast';
 export default function NewGamePage() {
   const router = useRouter();
   const [teams, setTeams] = useState<TeamWithManager[]>([]);
+  const [activeSeasonId, setActiveSeasonId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Load teams for the form
+  // Load teams and active season for the form
   useEffect(() => {
-    const loadTeams = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetch('/api/teams');
-        if (res.ok) {
-          const data = await res.json();
-          setTeams(data.data || []);
+        // Fetch teams and active season in parallel
+        const [teamsRes, seasonsRes] = await Promise.all([
+          fetch('/api/teams'),
+          fetch('/api/seasons?activeOnly=true'),
+        ]);
+
+        if (teamsRes.ok) {
+          const teamsData = await teamsRes.json();
+          setTeams(teamsData.data || []);
         } else {
           toast.error('Failed to load teams');
         }
+
+        if (seasonsRes.ok) {
+          const seasonsData = await seasonsRes.json();
+          // Get the first (and should be only) active season
+          const activeSeason = seasonsData.data?.seasons?.[0];
+          if (activeSeason) {
+            setActiveSeasonId(activeSeason.id);
+          } else {
+            console.warn('No active season found');
+            toast.error('No active season found. Please activate a season first.');
+          }
+        } else {
+          toast.error('Failed to load seasons');
+        }
       } catch (error) {
-        console.error('Failed to load teams:', error);
-        toast.error('Failed to load teams');
+        console.error('Failed to load data:', error);
+        toast.error('Failed to load required data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadTeams();
+    loadData();
   }, []);
 
   const handleSubmit = async (data: GameFormData | SeriesGameData[]) => {
@@ -155,10 +175,23 @@ export default function NewGamePage() {
             <Link href="/admin/teams">Add More Teams</Link>
           </Button>
         </div>
+      ) : !activeSeasonId ? (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-6 text-center">
+          <Calendar className="w-12 h-12 text-amber-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-amber-800 mb-2">
+            No Active Season
+          </h3>
+          <p className="text-amber-700 mb-4">
+            You need to have an active season to schedule games.
+          </p>
+          <Button variant="outline" asChild>
+            <Link href="/admin/seasons">Manage Seasons</Link>
+          </Button>
+        </div>
       ) : (
         <GameForm
           teams={teams}
-          seasonId="season-2026" // TODO: Get active season ID
+          seasonId={activeSeasonId}
           onSubmit={handleSubmit}
           onCancel={() => router.push('/admin/games')}
           mode="create"
