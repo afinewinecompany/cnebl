@@ -349,14 +349,14 @@ export async function getTeamMessages(
       // Build the query with optional cursor
       let queryText = `
         SELECT m.id, m.team_id, m.author_id, m.content, m.reply_to_id,
-               m.is_pinned, m.is_edited, m.edited_at, m.is_deleted, m.deleted_at, m.created_at,
+               m.channel_type, m.is_pinned, m.is_edited, m.edited_at, m.is_deleted, m.deleted_at, m.created_at,
                u.full_name as author_name, u.avatar_url as author_avatar
         FROM messages m
         JOIN users u ON u.id = m.author_id
-        WHERE m.team_id = $1 AND m.is_deleted = false
+        WHERE m.team_id = $1 AND m.channel_type = $2 AND m.is_deleted = false
       `;
-      const params: unknown[] = [teamId];
-      let paramIndex = 2;
+      const params: unknown[] = [teamId, channel];
+      let paramIndex = 3;
 
       if (pinnedOnly) {
         queryText += ` AND m.is_pinned = true`;
@@ -389,6 +389,7 @@ export async function getTeamMessages(
         author_id: string;
         content: string;
         reply_to_id: string | null;
+        channel_type: ChannelType;
         is_pinned: boolean;
         is_edited: boolean;
         edited_at: string | null;
@@ -402,17 +403,17 @@ export async function getTeamMessages(
       const hasMore = result.rows.length > limit;
       const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
 
-      // Get pinned count
+      // Get pinned count for this channel
       const pinnedResult = await query<{ count: string }>(
-        'SELECT COUNT(*) as count FROM messages WHERE team_id = $1 AND is_pinned = true AND is_deleted = false',
-        [teamId]
+        'SELECT COUNT(*) as count FROM messages WHERE team_id = $1 AND channel_type = $2 AND is_pinned = true AND is_deleted = false',
+        [teamId, channel]
       );
       const totalPinned = parseInt(pinnedResult.rows[0]?.count || '0', 10);
 
       const messages: MessageResponse[] = rows.map((row) => ({
         id: row.id,
         teamId: row.team_id,
-        channel: channel, // Database doesn't have channel yet, default to requested
+        channel: row.channel_type,
         authorId: row.author_id,
         content: row.content,
         replyToId: row.reply_to_id,
@@ -537,6 +538,7 @@ export async function createMessage(data: {
         author_id: string;
         content: string;
         reply_to_id: string | null;
+        channel_type: ChannelType;
         is_pinned: boolean;
         is_edited: boolean;
         edited_at: string | null;
@@ -544,11 +546,11 @@ export async function createMessage(data: {
         deleted_at: string | null;
         created_at: string;
       }>(
-        `INSERT INTO messages (team_id, author_id, content, reply_to_id)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, team_id, author_id, content, reply_to_id,
+        `INSERT INTO messages (team_id, author_id, content, channel_type, reply_to_id)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, team_id, author_id, content, reply_to_id, channel_type,
                    is_pinned, is_edited, edited_at, is_deleted, deleted_at, created_at`,
-        [data.teamId, data.authorId, data.content, data.replyToId || null]
+        [data.teamId, data.authorId, data.content, data.channel ?? DEFAULT_CHANNEL, data.replyToId || null]
       );
 
       const row = result.rows[0];
@@ -559,7 +561,7 @@ export async function createMessage(data: {
       return {
         id: row.id,
         teamId: row.team_id,
-        channel: data.channel ?? DEFAULT_CHANNEL,
+        channel: row.channel_type,
         authorId: row.author_id,
         content: row.content,
         replyToId: row.reply_to_id,
