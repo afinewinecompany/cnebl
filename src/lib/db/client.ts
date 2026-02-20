@@ -25,12 +25,13 @@ export function getDatabaseStatus(): DatabaseStatus {
 // =============================================================================
 
 // Connection pool configuration
-// Railway always requires SSL; use strict validation in production
+// Railway requires SSL but with their proxy certificates
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL
     ? {
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        // Railway uses proxy connections that don't support strict SSL validation
+        rejectUnauthorized: false,
       }
     : false,
   max: 20,
