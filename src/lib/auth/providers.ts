@@ -27,17 +27,25 @@ interface DbUser {
   role: UserRole;
   avatar_url: string | null;
   is_active: boolean;
+  team_id: string | null;
+  team_name: string | null;
 }
 
 /**
  * Find user by email from database
+ * Joins with players and teams tables to get team assignment
  */
 async function findUserByEmail(email: string): Promise<(User & { password: string }) | null> {
   try {
     const result = await query<DbUser>(
-      `SELECT id, email, password_hash, full_name, role, avatar_url, is_active
-       FROM users
-       WHERE LOWER(email) = LOWER($1) AND is_active = true`,
+      `SELECT
+         u.id, u.email, u.password_hash, u.full_name, u.role, u.avatar_url, u.is_active,
+         p.team_id,
+         t.name as team_name
+       FROM users u
+       LEFT JOIN players p ON p.user_id = u.id AND p.is_active = true
+       LEFT JOIN teams t ON t.id = p.team_id
+       WHERE LOWER(u.email) = LOWER($1) AND u.is_active = true`,
       [email]
     );
 
@@ -53,6 +61,8 @@ async function findUserByEmail(email: string): Promise<(User & { password: strin
       password: dbUser.password_hash,
       name: dbUser.full_name,
       role: dbUser.role,
+      teamId: dbUser.team_id || undefined,
+      teamName: dbUser.team_name || undefined,
       profileImage: dbUser.avatar_url || undefined,
       createdAt: new Date(),
       updatedAt: new Date(),

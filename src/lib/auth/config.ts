@@ -9,6 +9,7 @@ import type { NextAuthConfig } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import { providers } from './providers';
 import type { SessionUser, UserRole } from '@/types/auth';
+import { query } from '@/lib/db/client';
 
 // Extend the built-in session types
 declare module 'next-auth' {
@@ -77,11 +78,31 @@ export const authConfig: NextAuthConfig = {
         token.teamName = user.teamName;
       }
 
-      // Handle session update (e.g., after profile change)
-      if (trigger === 'update' && session) {
-        token.name = session.name || token.name;
-        token.teamId = session.teamId || token.teamId;
-        token.teamName = session.teamName || token.teamName;
+      // Handle session update (e.g., after profile change or team assignment)
+      if (trigger === 'update') {
+        // If explicit values provided, use them
+        if (session?.name) token.name = session.name;
+        if (session?.teamId) token.teamId = session.teamId;
+        if (session?.teamName) token.teamName = session.teamName;
+
+        // If refreshTeam flag is set, re-fetch team info from database
+        if (session?.refreshTeam && token.id) {
+          try {
+            const result = await query<{ team_id: string | null; team_name: string | null }>(
+              `SELECT p.team_id, t.name as team_name
+               FROM players p
+               LEFT JOIN teams t ON t.id = p.team_id
+               WHERE p.user_id = $1 AND p.is_active = true`,
+              [token.id]
+            );
+            if (result.rows.length > 0) {
+              token.teamId = result.rows[0].team_id || undefined;
+              token.teamName = result.rows[0].team_name || undefined;
+            }
+          } catch (error) {
+            console.error('[Auth] Failed to refresh team info:', error);
+          }
+        }
       }
 
       return token;

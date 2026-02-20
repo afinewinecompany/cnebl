@@ -16,8 +16,9 @@
  * />
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FloatingChatButton } from "./FloatingChatButton";
 import { FloatingChatDrawer } from "./FloatingChatDrawer";
@@ -61,17 +62,23 @@ function shouldHideChat(pathname: string): boolean {
 
 export function FloatingChat({ user }: FloatingChatProps) {
   const pathname = usePathname();
+  const { data: session, update: updateSession } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const hasAttemptedRefresh = useRef(false);
+
+  // Use session data if available, fall back to prop
+  const currentUser = session?.user || user;
+  const teamId = currentUser.teamId;
+  const teamName = currentUser.teamName;
 
   // Get unread count from channel store
-  const teamId = user.teamId;
   const unreadCount = useChannelStore(
     teamId ? selectTotalUnread(teamId) : () => 0
   );
 
   // Determine if user can see chat (must have a team)
-  const canAccessChat = Boolean(user.teamId && user.teamName);
+  const canAccessChat = Boolean(teamId && teamName);
 
   // Determine if chat should be visible on this page
   const isVisibleOnPage = !shouldHideChat(pathname);
@@ -83,6 +90,35 @@ export function FloatingChat({ user }: FloatingChatProps) {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Check for team assignment if session doesn't have team info
+  // This handles the case where admin assigns themselves to a team while logged in
+  useEffect(() => {
+    async function checkAndRefreshTeam() {
+      // Skip if already have team info, already attempted refresh, or not mounted
+      if (teamId || hasAttemptedRefresh.current || !isMounted) {
+        return;
+      }
+
+      hasAttemptedRefresh.current = true;
+
+      try {
+        // Check if user has a team assignment in the database
+        const response = await fetch("/api/user/team-status");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.hasTeam) {
+            // Refresh session to get updated team info
+            await updateSession({ refreshTeam: true });
+          }
+        }
+      } catch (error) {
+        console.error("[FloatingChat] Failed to check team status:", error);
+      }
+    }
+
+    checkAndRefreshTeam();
+  }, [teamId, isMounted, updateSession]);
 
   // Close drawer when navigating to a new page
   useEffect(() => {
@@ -114,10 +150,10 @@ export function FloatingChat({ user }: FloatingChatProps) {
         isOpen={isOpen}
         onClose={handleClose}
         teamId={teamId}
-        teamName={user.teamName || "Team"}
-        currentUserId={user.id}
-        currentUserRole={user.role}
-        isTeamManager={user.role === "manager"}
+        teamName={teamName || "Team"}
+        currentUserId={currentUser.id}
+        currentUserRole={currentUser.role}
+        isTeamManager={currentUser.role === "manager"}
       />
 
       {/* Floating Action Button */}
