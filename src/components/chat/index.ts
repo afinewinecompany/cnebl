@@ -28,6 +28,11 @@
 export { TeamMessengerContainer } from "./TeamMessengerContainer";
 export { ChatContainer } from "./ChatContainer";
 
+// Floating chat components
+export { FloatingChat } from "./FloatingChat";
+export { FloatingChatButton } from "./FloatingChatButton";
+export { FloatingChatDrawer } from "./FloatingChatDrawer";
+
 // Sub-components
 export { MessageList } from "./MessageList";
 export { MessageBubble } from "./MessageBubble";

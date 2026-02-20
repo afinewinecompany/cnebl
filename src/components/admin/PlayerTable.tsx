@@ -163,7 +163,6 @@ function MobilePlayerCard({
           variant="ghost"
           className="w-full min-h-[48px] text-field hover:text-field hover:bg-field/10 border border-field/20"
           onClick={() => onAssign(user)}
-          disabled={user.role !== 'player'}
         >
           <UserPlus className="w-5 h-5 mr-2" />
           Assign to Team
@@ -408,7 +407,6 @@ export function PlayerTable({ users, onAssign, onRemove }: PlayerTableProps) {
                         size="xs"
                         onClick={() => onAssign(user)}
                         className="text-field hover:text-field hover:bg-field/10"
-                        disabled={user.role !== 'player'}
                       >
                         <UserPlus className="w-4 h-4 mr-1" />
                         <span className="hidden sm:inline">Assign</span>

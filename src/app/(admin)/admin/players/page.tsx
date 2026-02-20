@@ -132,7 +132,7 @@ export default function PlayersPage() {
   const stats = useMemo(() => ({
     total: users.length,
     assigned: users.filter((u) => u.teamId !== null).length,
-    unassigned: users.filter((u) => u.teamId === null && u.role === 'player').length,
+    unassigned: users.filter((u) => u.teamId === null).length,
     active: users.filter((u) => u.isActive).length,
   }), [users]);
 
@@ -363,7 +363,7 @@ export default function PlayersPage() {
             variant="default"
             size="sm"
             onClick={() => {
-              const unassigned = users.find((u) => u.teamId === null && u.role === 'player');
+              const unassigned = users.find((u) => u.teamId === null);
               if (unassigned) {
                 handleAssignPlayer(unassigned);
               }
