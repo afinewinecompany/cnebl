@@ -39,8 +39,8 @@ interface ChatContainerProps {
   currentUserRole?: "player" | "manager" | "admin" | "commissioner";
   /** Number of online team members (optional) */
   onlineCount?: number;
-  /** Callback when user sends a message */
-  onSendMessage: (content: string, replyToId?: string) => void;
+  /** Callback when user sends a message (optional if posting is disabled) */
+  onSendMessage?: (content: string, replyToId?: string) => void;
   /** Callback when user pins/unpins a message */
   onPinMessage?: (message: MessageWithAuthor) => void;
   /** Callback when user edits a message */
@@ -90,7 +90,7 @@ export function ChatContainer({
   // Handle message send
   const handleSend = useCallback(
     (content: string, replyToId?: string) => {
-      onSendMessage(content, replyToId);
+      onSendMessage?.(content, replyToId);
       setReplyingTo(null);
     },
     [onSendMessage]
@@ -235,15 +235,17 @@ export function ChatContainer({
         className="flex-1"
       />
 
-      {/* Message input */}
-      <MessageInput
-        onSend={handleSend}
-        replyingTo={replyingTo}
-        onCancelReply={() => setReplyingTo(null)}
-        isSending={isSending}
-        maxLength={500}
-        placeholder={`Message ${teamName}...`}
-      />
+      {/* Message input (only show if onSendMessage is provided) */}
+      {onSendMessage && (
+        <MessageInput
+          onSend={handleSend}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
+          isSending={isSending}
+          maxLength={500}
+          placeholder={`Message ${teamName}...`}
+        />
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   Megaphone,
   Trophy,
   MoreHorizontal,
+  MessageCircle,
 } from 'lucide-react';
 import type { UserRole } from '@/types/database.types';
 
@@ -66,6 +67,11 @@ const navItems: NavItem[] = [
     name: 'Announcements',
     href: '/admin/announcements',
     icon: Megaphone,
+  },
+  {
+    name: 'Team Chats',
+    href: '/admin/chat',
+    icon: MessageCircle,
   },
   {
     name: 'Settings',

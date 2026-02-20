@@ -24,8 +24,11 @@ import {
   getTeamMessages,
   createMessage,
   isTeamMember,
+  isTeamManagerOrAdmin,
 } from '@/lib/db/queries';
 import { getTeamById } from '@/lib/db/queries';
+import { ROLE_LEVELS } from '@/types/auth';
+import { canUserPostToChannel, canUserViewTeamMessages } from '@/lib/constants/channels';
 
 interface RouteParams {
   params: Promise<{ teamId: string }>;
@@ -115,18 +118,26 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Team', teamId);
     }
 
-    // Check if user is a member of the team
+    // Check authorization
+    const userRole = session.user.role;
+    const userRoleLevel = ROLE_LEVELS[userRole] ?? 1;
+    const isAdmin = userRoleLevel >= ROLE_LEVELS.admin;
     const isMember = await isTeamMember(session.user.id, teamId);
-    if (!isMember) {
+    const isManager = await isTeamManagerOrAdmin(session.user.id, teamId);
+
+    // Admins can view any team's messages, others must be team members
+    const canView = canUserViewTeamMessages(userRole, isMember, isManager);
+    if (!canView) {
       return forbiddenResponse('You must be a member of this team to view messages');
     }
 
-    // Parse query parameters
+    // Parse query parameters (now includes channel)
     const { searchParams } = new URL(request.url);
     const query = parseListMessagesQuery(searchParams);
 
-    // Fetch messages
+    // Fetch messages for the specified channel
     const result = await getTeamMessages(teamId, {
+      channel: query.channel,
       cursor: query.cursor,
       limit: query.limit,
       direction: query.direction,
@@ -208,9 +219,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Team', teamId);
     }
 
-    // Check if user is a member of the team
+    // Check authorization
+    const userRole = session.user.role;
+    const userRoleLevel = ROLE_LEVELS[userRole] ?? 1;
+    const isAdmin = userRoleLevel >= ROLE_LEVELS.admin;
     const isMember = await isTeamMember(session.user.id, teamId);
-    if (!isMember) {
+    const isManager = await isTeamManagerOrAdmin(session.user.id, teamId);
+
+    // Admins can post to any team, others must be team members
+    if (!isAdmin && !isMember && !isManager) {
       return forbiddenResponse('You must be a member of this team to send messages');
     }
 
@@ -227,11 +244,20 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return validationErrorResponse(validation.errors);
     }
 
-    // Create the message
+    const channel = validation.data.channel;
+
+    // Check if user can post to this channel
+    const canPost = canUserPostToChannel(userRole, isManager, channel);
+    if (!canPost) {
+      return forbiddenResponse('Only team managers can post to the Important channel');
+    }
+
+    // Create the message with channel
     const message = await createMessage({
       teamId,
       authorId: session.user.id,
       content: validation.data.content,
+      channel: channel,
       replyToId: validation.data.replyToId ?? null,
     });
 

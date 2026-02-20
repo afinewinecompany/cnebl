@@ -45,6 +45,14 @@ export type PitchingDecision = 'W' | 'L' | 'S' | 'H' | 'BS' | 'ND';
 
 export type InningHalf = 'top' | 'bottom';
 
+/**
+ * Channel types for team messaging
+ * - important: Manager-only posting, all can read (announcements, schedules)
+ * - general: All team members can read and post (regular team chat)
+ * - substitutes: All team members can read and post (finding subs for games)
+ */
+export type ChannelType = 'important' | 'general' | 'substitutes';
+
 // =============================================================================
 // TABLE TYPES
 // =============================================================================
@@ -219,6 +227,7 @@ export interface Message {
   teamId: string;
   authorId: string;
   content: string;
+  channelType: ChannelType;
   replyToId: string | null;
   isPinned: boolean;
   isEdited: boolean;
@@ -226,6 +235,42 @@ export interface Message {
   isDeleted: boolean;
   deletedAt: string | null;
   createdAt: string;
+}
+
+/**
+ * Channel metadata record - stores display info for channel types
+ */
+export interface ChannelMetadata {
+  channelType: ChannelType;
+  displayName: string;
+  description: string;
+  iconName: string;
+  sortOrder: number;
+  canAllPost: boolean;
+  createdAt: string;
+}
+
+/**
+ * Channel configuration for UI rendering
+ */
+export interface ChannelConfig {
+  type: ChannelType;
+  name: string;
+  description: string;
+  icon: string;
+  canAllPost: boolean;
+}
+
+/**
+ * Team channel statistics from the team_channel_stats view
+ */
+export interface TeamChannelStats {
+  teamId: string;
+  channelType: ChannelType;
+  messageCount: number;
+  pinnedCount: number;
+  lastMessageAt: string | null;
+  uniqueAuthors: number;
 }
 
 /**

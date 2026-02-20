@@ -4,8 +4,9 @@
  * Currently returns mock data, will be replaced with PostgreSQL queries
  */
 
-import type { Message } from '@/types';
+import type { Message, ChannelType } from '@/types';
 import type { MessageResponse, MessagesListResponse } from '@/lib/api/schemas/messages';
+import { DEFAULT_CHANNEL } from '@/lib/constants/channels';
 
 // =============================================================================
 // MOCK DATA
@@ -18,10 +19,43 @@ import type { MessageResponse, MessagesListResponse } from '@/lib/api/schemas/me
 const mockMessages: (Message & {
   author: { id: string; fullName: string; avatarUrl: string | null };
 })[] = [
+  // Important channel messages (manager announcements)
+  {
+    id: 'msg-imp-001',
+    teamId: 'rays',
+    authorId: 'user-003',
+    channelType: 'important',
+    content: 'IMPORTANT: Practice schedule updated for the rest of the season. Check the calendar!',
+    replyToId: null,
+    isPinned: true,
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: '2026-02-17T10:00:00Z',
+    author: { id: 'user-003', fullName: 'Coach Williams', avatarUrl: null },
+  },
+  {
+    id: 'msg-imp-002',
+    teamId: 'rays',
+    authorId: 'user-003',
+    channelType: 'important',
+    content: 'Game against Pirates rescheduled to Saturday 2pm due to weather.',
+    replyToId: null,
+    isPinned: true,
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: '2026-02-16T20:00:00Z',
+    author: { id: 'user-003', fullName: 'Coach Williams', avatarUrl: null },
+  },
+  // General channel messages (team chat)
   {
     id: 'msg-001',
     teamId: 'rays',
     authorId: 'user-001',
+    channelType: 'general',
     content: 'Great game today everyone! Really proud of how we came together in the 7th inning.',
     replyToId: null,
     isPinned: true,
@@ -36,6 +70,7 @@ const mockMessages: (Message & {
     id: 'msg-002',
     teamId: 'rays',
     authorId: 'user-002',
+    channelType: 'general',
     content: 'Thanks coach! That double play was clutch.',
     replyToId: 'msg-001',
     isPinned: false,
@@ -50,6 +85,7 @@ const mockMessages: (Message & {
     id: 'msg-003',
     teamId: 'rays',
     authorId: 'user-003',
+    channelType: 'general',
     content: 'Practice moved to 6pm tomorrow due to field conditions.',
     replyToId: null,
     isPinned: true,
@@ -64,6 +100,7 @@ const mockMessages: (Message & {
     id: 'msg-004',
     teamId: 'rays',
     authorId: 'user-004',
+    channelType: 'general',
     content: 'Got it, see you all there!',
     replyToId: 'msg-003',
     isPinned: false,
@@ -78,6 +115,7 @@ const mockMessages: (Message & {
     id: 'msg-005',
     teamId: 'rays',
     authorId: 'user-001',
+    channelType: 'general',
     content: 'Reminder: team dinner at Captain Jacks on Friday at 7pm',
     replyToId: null,
     isPinned: false,
@@ -88,10 +126,43 @@ const mockMessages: (Message & {
     createdAt: '2026-02-16T19:15:00Z',
     author: { id: 'user-001', fullName: 'Mike Johnson', avatarUrl: null },
   },
+  // Substitutes channel messages
+  {
+    id: 'msg-sub-001',
+    teamId: 'rays',
+    authorId: 'user-002',
+    channelType: 'substitutes',
+    content: 'Looking for a sub for Saturday\'s game. Need someone who can play outfield.',
+    replyToId: null,
+    isPinned: false,
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: '2026-02-16T15:00:00Z',
+    author: { id: 'user-002', fullName: 'Tom Davis', avatarUrl: null },
+  },
+  {
+    id: 'msg-sub-002',
+    teamId: 'rays',
+    authorId: 'user-004',
+    channelType: 'substitutes',
+    content: 'I can cover! What time is the game?',
+    replyToId: 'msg-sub-001',
+    isPinned: false,
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: '2026-02-16T15:30:00Z',
+    author: { id: 'user-004', fullName: 'Steve Miller', avatarUrl: null },
+  },
+  // Other teams - General channel
   {
     id: 'msg-006',
     teamId: 'pirates',
     authorId: 'user-010',
+    channelType: 'general',
     content: 'Nice win today Pirates! Keep the momentum going.',
     replyToId: null,
     isPinned: true,
@@ -106,6 +177,7 @@ const mockMessages: (Message & {
     id: 'msg-007',
     teamId: 'athletics',
     authorId: 'user-020',
+    channelType: 'general',
     content: 'Equipment check tomorrow before practice. Make sure your gear is ready.',
     replyToId: null,
     isPinned: true,
@@ -115,6 +187,22 @@ const mockMessages: (Message & {
     deletedAt: null,
     createdAt: '2026-02-16T16:00:00Z',
     author: { id: 'user-020', fullName: 'Chris Anderson', avatarUrl: null },
+  },
+  // Important channel for other teams
+  {
+    id: 'msg-imp-003',
+    teamId: 'pirates',
+    authorId: 'user-010',
+    channelType: 'important',
+    content: 'Team meeting this Thursday at 7pm. Attendance is mandatory.',
+    replyToId: null,
+    isPinned: true,
+    isEdited: false,
+    editedAt: null,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: '2026-02-15T14:00:00Z',
+    author: { id: 'user-010', fullName: 'Jake Roberts', avatarUrl: null },
   },
 ];
 
@@ -176,6 +264,7 @@ function transformMessage(
   return {
     id: message.id,
     teamId: message.teamId,
+    channel: message.channelType,
     authorId: message.authorId,
     content: message.isDeleted ? '[Message deleted]' : message.content,
     replyToId: message.replyToId,
@@ -200,6 +289,7 @@ function transformMessage(
 export async function getTeamMessages(
   teamId: string,
   options: {
+    channel?: ChannelType;
     cursor?: string;
     limit?: number;
     direction?: 'older' | 'newer';
@@ -208,11 +298,11 @@ export async function getTeamMessages(
 ): Promise<MessagesListResponse> {
   await new Promise((resolve) => setTimeout(resolve, 20));
 
-  const { cursor, limit = 50, direction = 'older', pinnedOnly = false } = options;
+  const { channel = DEFAULT_CHANNEL, cursor, limit = 50, direction = 'older', pinnedOnly = false } = options;
 
-  // Filter messages for this team
+  // Filter messages for this team and channel
   let teamMessages = mockMessages.filter(
-    (m) => m.teamId === teamId && !m.isDeleted
+    (m) => m.teamId === teamId && m.channelType === channel && !m.isDeleted
   );
 
   // Filter pinned only if requested
@@ -225,9 +315,9 @@ export async function getTeamMessages(
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-  // Calculate total pinned count
+  // Calculate total pinned count for this channel
   const totalPinned = mockMessages.filter(
-    (m) => m.teamId === teamId && m.isPinned && !m.isDeleted
+    (m) => m.teamId === teamId && m.channelType === channel && m.isPinned && !m.isDeleted
   ).length;
 
   // Apply cursor-based pagination
@@ -254,6 +344,7 @@ export async function getTeamMessages(
     },
     hasMore,
     totalPinned,
+    channel,
   };
 }
 
@@ -278,6 +369,7 @@ export async function createMessage(data: {
   teamId: string;
   authorId: string;
   content: string;
+  channel?: ChannelType;
   replyToId?: string | null;
 }): Promise<MessageResponse> {
   await new Promise((resolve) => setTimeout(resolve, 20));
@@ -286,6 +378,7 @@ export async function createMessage(data: {
     id: `msg-${Date.now()}`,
     teamId: data.teamId,
     authorId: data.authorId,
+    channelType: data.channel ?? DEFAULT_CHANNEL,
     content: data.content,
     replyToId: data.replyToId ?? null,
     isPinned: false,
@@ -305,6 +398,42 @@ export async function createMessage(data: {
   mockMessages.unshift(newMessage);
 
   return transformMessage(newMessage, mockMessages);
+}
+
+/**
+ * Get channel statistics for a team
+ */
+export async function getTeamChannelStats(teamId: string): Promise<{
+  important: { messageCount: number; pinnedCount: number; lastMessageAt: string | null };
+  general: { messageCount: number; pinnedCount: number; lastMessageAt: string | null };
+  substitutes: { messageCount: number; pinnedCount: number; lastMessageAt: string | null };
+}> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const channels: ChannelType[] = ['important', 'general', 'substitutes'];
+  const stats: Record<ChannelType, { messageCount: number; pinnedCount: number; lastMessageAt: string | null }> = {
+    important: { messageCount: 0, pinnedCount: 0, lastMessageAt: null },
+    general: { messageCount: 0, pinnedCount: 0, lastMessageAt: null },
+    substitutes: { messageCount: 0, pinnedCount: 0, lastMessageAt: null },
+  };
+
+  for (const channel of channels) {
+    const channelMessages = mockMessages.filter(
+      (m) => m.teamId === teamId && m.channelType === channel && !m.isDeleted
+    );
+
+    stats[channel].messageCount = channelMessages.length;
+    stats[channel].pinnedCount = channelMessages.filter((m) => m.isPinned).length;
+
+    if (channelMessages.length > 0) {
+      const sortedMessages = [...channelMessages].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      stats[channel].lastMessageAt = sortedMessages[0].createdAt;
+    }
+  }
+
+  return stats;
 }
 
 /**

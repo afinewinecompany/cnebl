@@ -17,6 +17,7 @@ export {
   type AvailabilityStatus,
   type PitchingDecision,
   type InningHalf,
+  type ChannelType,
   // Core tables (excluding User)
   type Season,
   type Team,
@@ -27,6 +28,10 @@ export {
   type Message,
   type Announcement,
   type Availability,
+  // Channel types
+  type ChannelMetadata,
+  type ChannelConfig,
+  type TeamChannelStats,
   // Views
   type Standing,
   type PlayerBattingTotals,

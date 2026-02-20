@@ -44,3 +44,7 @@ export { DeleteConfirmModal } from './DeleteConfirmModal';
 // Announcement Management Components
 export { AnnouncementEditModal } from './AnnouncementEditModal';
 export type { AnnouncementFormData } from './AnnouncementEditModal';
+
+// Chat Management Components
+export { TeamSelector, AdminMessengerView } from './chat';
+export type { TeamSelectorProps, TeamOption } from './chat';

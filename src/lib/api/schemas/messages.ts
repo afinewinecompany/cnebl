@@ -6,6 +6,37 @@
 
 import { z } from 'zod';
 import { sanitizeMessageContent } from '../sanitize';
+import type { ChannelType } from '@/types/database.types';
+
+// =============================================================================
+// CHANNEL SCHEMA
+// =============================================================================
+
+/**
+ * Valid channel types for team messaging
+ */
+export const channelTypeSchema = z.enum(['important', 'general', 'substitutes']);
+
+/**
+ * Channel metadata for UI display
+ */
+export const CHANNEL_METADATA: Record<ChannelType, { name: string; description: string; icon: string }> = {
+  important: {
+    name: 'Important',
+    description: 'Announcements from team management',
+    icon: 'megaphone',
+  },
+  general: {
+    name: 'General',
+    description: 'Team discussions',
+    icon: 'message-circle',
+  },
+  substitutes: {
+    name: 'Substitutes',
+    description: 'Find subs for games',
+    icon: 'users',
+  },
+};
 
 // =============================================================================
 // BASE SCHEMAS
@@ -38,6 +69,7 @@ export const uuidSchema = z
  */
 export const createMessageSchema = z.object({
   content: messageContentSchema,
+  channel: channelTypeSchema.default('general'),
   replyToId: z.string().nullable().optional(),
 });
 
@@ -72,6 +104,7 @@ export type TogglePinInput = z.infer<typeof togglePinSchema>;
  * GET /api/teams/[teamId]/messages
  */
 export const listMessagesQuerySchema = z.object({
+  channel: channelTypeSchema.optional().default('general'),
   cursor: z.string().optional(),
   limit: z
     .string()
@@ -110,6 +143,7 @@ export const messageAuthorSchema = z.object({
 export const messageResponseSchema = z.object({
   id: z.string(),
   teamId: z.string(),
+  channel: channelTypeSchema,
   authorId: z.string(),
   content: z.string(),
   replyToId: z.string().nullable(),
@@ -140,9 +174,30 @@ export const messagesListResponseSchema = z.object({
   }),
   hasMore: z.boolean(),
   totalPinned: z.number(),
+  channel: channelTypeSchema,
 });
 
 export type MessagesListResponse = z.infer<typeof messagesListResponseSchema>;
+
+/**
+ * Channel info response schema
+ */
+export const channelInfoSchema = z.object({
+  id: channelTypeSchema,
+  name: z.string(),
+  description: z.string(),
+  canWrite: z.boolean(),
+  messageCount: z.number(),
+  lastMessageAt: z.string().nullable(),
+  pinnedCount: z.number(),
+});
+
+export const channelsResponseSchema = z.object({
+  channels: z.array(channelInfoSchema),
+});
+
+export type ChannelInfo = z.infer<typeof channelInfoSchema>;
+export type ChannelsResponse = z.infer<typeof channelsResponseSchema>;
 
 // =============================================================================
 // VALIDATION HELPERS
@@ -237,6 +292,7 @@ export function validateTogglePin(data: unknown): {
  */
 export function parseListMessagesQuery(searchParams: URLSearchParams): ListMessagesQuery {
   return listMessagesQuerySchema.parse({
+    channel: searchParams.get('channel') || undefined,
     cursor: searchParams.get('cursor') || undefined,
     limit: searchParams.get('limit') || undefined,
     direction: searchParams.get('direction') || undefined,
