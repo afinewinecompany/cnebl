@@ -401,8 +401,8 @@ export async function assignPlayerToTeam(input: AssignPlayerInput): Promise<Play
     updatedAt: now,
   };
 
-  // In production, this would insert into the database
-  // For mock, we could add to the array but it won't persist
+  // Add to mock data array so it persists in memory
+  mockPlayers.push(newPlayer);
 
   return {
     ...newPlayer,
@@ -471,7 +471,13 @@ export async function updatePlayerAssignment(
     }
   }
 
-  // Build updated player (in production, this would update the database)
+  // Find the player index and update in the mock array
+  const playerIndex = mockPlayers.findIndex((p) => p.id === playerId);
+  if (playerIndex === -1) {
+    throw new Error('Player not found');
+  }
+
+  // Build updated player
   const updatedPlayer = {
     ...player,
     teamId: updates.teamId ?? player.teamId,
@@ -487,6 +493,9 @@ export async function updatePlayerAssignment(
     isActive: updates.isActive ?? player.isActive,
     updatedAt: new Date().toISOString(),
   };
+
+  // Update the mock array so changes persist in memory
+  mockPlayers[playerIndex] = updatedPlayer;
 
   return {
     ...updatedPlayer,
@@ -512,17 +521,22 @@ export async function updatePlayerAssignment(
 export async function removePlayerFromTeam(playerId: string): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 10));
 
-  const player = mockPlayers.find((p) => p.id === playerId);
-  if (!player) {
+  const playerIndex = mockPlayers.findIndex((p) => p.id === playerId);
+  if (playerIndex === -1) {
     throw new Error('Player not found');
   }
 
+  const player = mockPlayers[playerIndex];
   if (!player.isActive) {
     throw new Error('Player is already removed from their team');
   }
 
-  // In production, this would update the database to set isActive = false
-  // For mock, we just simulate the operation
+  // Update the mock array to set isActive to false so changes persist in memory
+  mockPlayers[playerIndex] = {
+    ...player,
+    isActive: false,
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /**
