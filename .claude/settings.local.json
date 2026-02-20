@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npm init:*)",
+      "Bash(./node_modules/.bin/tailwindcss init:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run build:*)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(python:*)",
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(dir:*)",
+      "Bash(npm run dev:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)"
+    ]
+  },
+  "autoApprove": {
+    "edit": true,
+    "create": true,
+    "write": true,
+    "bash": true
+  }
+}

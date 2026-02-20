@@ -34,9 +34,10 @@ const poolConfig = {
         rejectUnauthorized: false,
       }
     : false,
-  max: 20,
+  max: 10, // Reduced pool size for serverless
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased from 2000ms to 10000ms for cold starts
+  statement_timeout: 30000, // 30 second query timeout
 };
 
 // Create a connection pool
