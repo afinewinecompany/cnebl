@@ -1,19 +1,69 @@
 /**
  * Admin Users/Players Queries
  * Query functions for admin user and player management
- * Currently returns mock data, will be replaced with PostgreSQL queries
+ * Uses PostgreSQL database for persistence
  */
 
-import { teams as mockTeams } from '@/lib/mock-data';
+import { query, getClient } from '@/lib/db/client';
 import type {
-  User,
-  Player,
-  Team,
   UserRole,
   FieldPosition,
   BattingSide,
   ThrowingArm,
 } from '@/types';
+
+// =============================================================================
+// STATIC TEAM DATA
+// =============================================================================
+
+/**
+ * Static teams data - these never change
+ * Used for display and mapping team slugs to database team IDs
+ */
+export const mockTeams = [
+  {
+    id: 'rays',
+    name: 'Rays',
+    abbreviation: 'RAY',
+    primaryColor: '#092C5C',
+    secondaryColor: '#8FBCE6',
+  },
+  {
+    id: 'pirates',
+    name: 'Pirates',
+    abbreviation: 'PIR',
+    primaryColor: '#27251F',
+    secondaryColor: '#FDB827',
+  },
+  {
+    id: 'athletics',
+    name: 'Athletics',
+    abbreviation: 'ATH',
+    primaryColor: '#003831',
+    secondaryColor: '#EFB21E',
+  },
+  {
+    id: 'mariners',
+    name: 'Mariners',
+    abbreviation: 'MAR',
+    primaryColor: '#0C2C56',
+    secondaryColor: '#005C5C',
+  },
+  {
+    id: 'rockies',
+    name: 'Rockies',
+    abbreviation: 'ROC',
+    primaryColor: '#33006F',
+    secondaryColor: '#C4CED4',
+  },
+  {
+    id: 'diamondbacks',
+    name: 'Diamondbacks',
+    abbreviation: 'DBK',
+    primaryColor: '#A71930',
+    secondaryColor: '#E3D4AD',
+  },
+];
 
 // =============================================================================
 // TYPES
@@ -111,63 +161,77 @@ export interface PlayerWithDetails {
 }
 
 // =============================================================================
-// MOCK DATA
+// HELPER FUNCTIONS
 // =============================================================================
 
-// Mock users data - will be replaced with database queries
-const mockUsers: Array<{
-  id: string;
-  email: string;
-  fullName: string;
-  phone: string | null;
-  avatarUrl: string | null;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string;
-}> = [
-  { id: 'user-001', email: 'ben.douglas@email.com', fullName: 'Ben Douglas', phone: '555-0101', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-01-15T00:00:00Z' },
-  { id: 'user-002', email: 'keegan.taylor@email.com', fullName: 'Keegan Taylor', phone: '555-0102', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-01-20T00:00:00Z' },
-  { id: 'user-003', email: 'jesse.hill@email.com', fullName: 'Jesse Hill', phone: '555-0103', avatarUrl: null, role: 'manager', isActive: true, createdAt: '2024-02-01T00:00:00Z' },
-  { id: 'user-004', email: 'ryan.costa@email.com', fullName: 'Ryan Costa', phone: '555-0104', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-02-10T00:00:00Z' },
-  { id: 'user-005', email: 'dave.nieves@email.com', fullName: 'Dave Nieves', phone: '555-0105', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-02-15T00:00:00Z' },
-  { id: 'user-006', email: 'eddie.brown@email.com', fullName: 'Eddie Brown', phone: '555-0106', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-01T00:00:00Z' },
-  { id: 'user-007', email: 'jj.brigham@email.com', fullName: 'JJ Brigham', phone: '555-0107', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-05T00:00:00Z' },
-  { id: 'user-008', email: 'drew.marcotte@email.com', fullName: 'Drew Marcotte', phone: '555-0108', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-10T00:00:00Z' },
-  { id: 'user-009', email: 'john.smith@email.com', fullName: 'John Smith', phone: '555-0109', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-15T00:00:00Z' },
-  { id: 'user-010', email: 'mike.johnson@email.com', fullName: 'Mike Johnson', phone: '555-0110', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-20T00:00:00Z' },
-  { id: 'user-011', email: 'tom.wilson@email.com', fullName: 'Tom Wilson', phone: '555-0111', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-03-25T00:00:00Z' },
-  { id: 'user-012', email: 'chris.davis@email.com', fullName: 'Chris Davis', phone: '555-0112', avatarUrl: null, role: 'player', isActive: true, createdAt: '2024-04-01T00:00:00Z' },
-  { id: 'user-013', email: 'james.martinez@email.com', fullName: 'James Martinez', phone: '555-0113', avatarUrl: null, role: 'player', isActive: false, createdAt: '2024-04-05T00:00:00Z' },
-  { id: 'user-014', email: 'admin@cnebl.com', fullName: 'League Admin', phone: null, avatarUrl: null, role: 'admin', isActive: true, createdAt: '2023-01-01T00:00:00Z' },
-  { id: 'user-015', email: 'commissioner@cnebl.com', fullName: 'Commissioner', phone: null, avatarUrl: null, role: 'commissioner', isActive: true, createdAt: '2023-01-01T00:00:00Z' },
-];
+/**
+ * Safely convert a date value to ISO string
+ * PostgreSQL returns dates as strings, but sometimes as Date objects
+ */
+function toISOString(value: unknown): string {
+  if (!value) return new Date().toISOString();
+  if (typeof value === 'string') return value;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
 
-// Mock player assignments (links users to teams)
-const mockPlayers: Array<{
-  id: string;
-  userId: string;
-  teamId: string;
-  seasonId: string;
-  jerseyNumber: string | null;
-  primaryPosition: FieldPosition;
-  secondaryPosition: FieldPosition | null;
-  bats: BattingSide;
-  throws: ThrowingArm;
-  isActive: boolean;
-  isCaptain: boolean;
-  joinedAt: string;
-  createdAt: string;
-  updatedAt: string;
-}> = [
-  { id: 'player-001', userId: 'user-001', teamId: 'athletics', seasonId: 'season-2026', jerseyNumber: '7', primaryPosition: 'SS', secondaryPosition: '2B', bats: 'R', throws: 'R', isActive: true, isCaptain: true, joinedAt: '2024-01-15T00:00:00Z', createdAt: '2024-01-15T00:00:00Z', updatedAt: '2024-01-15T00:00:00Z' },
-  { id: 'player-002', userId: 'user-002', teamId: 'mariners', seasonId: 'season-2026', jerseyNumber: '21', primaryPosition: 'P', secondaryPosition: null, bats: 'L', throws: 'L', isActive: true, isCaptain: false, joinedAt: '2024-01-20T00:00:00Z', createdAt: '2024-01-20T00:00:00Z', updatedAt: '2024-01-20T00:00:00Z' },
-  { id: 'player-003', userId: 'user-003', teamId: 'pirates', seasonId: 'season-2026', jerseyNumber: '12', primaryPosition: 'P', secondaryPosition: 'CF', bats: 'R', throws: 'R', isActive: true, isCaptain: true, joinedAt: '2024-02-01T00:00:00Z', createdAt: '2024-02-01T00:00:00Z', updatedAt: '2024-02-01T00:00:00Z' },
-  { id: 'player-004', userId: 'user-004', teamId: 'rays', seasonId: 'season-2026', jerseyNumber: '45', primaryPosition: 'P', secondaryPosition: null, bats: 'R', throws: 'R', isActive: true, isCaptain: false, joinedAt: '2024-02-10T00:00:00Z', createdAt: '2024-02-10T00:00:00Z', updatedAt: '2024-02-10T00:00:00Z' },
-  { id: 'player-005', userId: 'user-005', teamId: 'athletics', seasonId: 'season-2026', jerseyNumber: '33', primaryPosition: 'P', secondaryPosition: 'LF', bats: 'S', throws: 'R', isActive: true, isCaptain: false, joinedAt: '2024-02-15T00:00:00Z', createdAt: '2024-02-15T00:00:00Z', updatedAt: '2024-02-15T00:00:00Z' },
-  { id: 'player-006', userId: 'user-006', teamId: 'diamondbacks', seasonId: 'season-2026', jerseyNumber: '8', primaryPosition: 'P', secondaryPosition: null, bats: 'R', throws: 'R', isActive: true, isCaptain: false, joinedAt: '2024-03-01T00:00:00Z', createdAt: '2024-03-01T00:00:00Z', updatedAt: '2024-03-01T00:00:00Z' },
-  { id: 'player-007', userId: 'user-007', teamId: 'rockies', seasonId: 'season-2026', jerseyNumber: '15', primaryPosition: 'P', secondaryPosition: '2B', bats: 'R', throws: 'R', isActive: true, isCaptain: false, joinedAt: '2024-03-05T00:00:00Z', createdAt: '2024-03-05T00:00:00Z', updatedAt: '2024-03-05T00:00:00Z' },
-  { id: 'player-008', userId: 'user-008', teamId: 'mariners', seasonId: 'season-2026', jerseyNumber: '3', primaryPosition: 'C', secondaryPosition: 'P', bats: 'R', throws: 'R', isActive: true, isCaptain: true, joinedAt: '2024-03-10T00:00:00Z', createdAt: '2024-03-10T00:00:00Z', updatedAt: '2024-03-10T00:00:00Z' },
-];
+/**
+ * Get the database team ID from a team slug (like 'athletics')
+ * Uses case-insensitive matching on team name
+ */
+async function getDbTeamId(teamSlug: string): Promise<string | null> {
+  try {
+    // First try to find by name (case-insensitive)
+    const staticTeam = mockTeams.find((t) => t.id === teamSlug);
+    if (!staticTeam) return null;
+
+    const result = await query<{ id: string }>(
+      `SELECT id FROM teams WHERE LOWER(name) = LOWER($1) AND is_active = true LIMIT 1`,
+      [staticTeam.name]
+    );
+
+    if (result.rows.length > 0) {
+      return result.rows[0].id;
+    }
+
+    // If not found by name, try by abbreviation
+    const resultByAbbr = await query<{ id: string }>(
+      `SELECT id FROM teams WHERE LOWER(abbreviation) = LOWER($1) AND is_active = true LIMIT 1`,
+      [staticTeam.abbreviation]
+    );
+
+    return resultByAbbr.rows.length > 0 ? resultByAbbr.rows[0].id : null;
+  } catch (error) {
+    console.error('[AdminUsers] Error getting DB team ID:', error);
+    return null;
+  }
+}
+
+/**
+ * Get the static team slug from a database team (by name matching)
+ */
+function getStaticTeamByName(teamName: string): (typeof mockTeams)[0] | null {
+  return (
+    mockTeams.find(
+      (t) => t.name.toLowerCase() === teamName.toLowerCase()
+    ) || null
+  );
+}
+
+/**
+ * Get the current active season ID
+ */
+async function getActiveSeasonId(): Promise<string | null> {
+  try {
+    const result = await query<{ id: string }>(
+      `SELECT id FROM seasons WHERE is_active = true LIMIT 1`
+    );
+    return result.rows.length > 0 ? result.rows[0].id : null;
+  } catch (error) {
+    console.error('[AdminUsers] Error getting active season:', error);
+    return null;
+  }
+}
 
 // =============================================================================
 // QUERY FUNCTIONS
@@ -182,244 +246,529 @@ export async function getAllUsersWithAssignments(
   users: UserWithAssignment[];
   totalCount: number;
 }> {
-  // Simulate async database query
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    // Build the base query
+    let queryText = `
+      SELECT
+        u.id,
+        u.email,
+        u.full_name as "fullName",
+        u.phone,
+        u.avatar_url as "avatarUrl",
+        u.role,
+        u.is_active as "isActive",
+        u.created_at as "createdAt",
+        p.id as "playerId",
+        t.name as "teamName",
+        t.abbreviation as "teamAbbreviation",
+        t.primary_color as "teamPrimaryColor",
+        p.jersey_number as "jerseyNumber",
+        p.primary_position as "primaryPosition",
+        p.secondary_position as "secondaryPosition",
+        p.bats,
+        p.throws,
+        p.is_captain as "isCaptain"
+      FROM users u
+      LEFT JOIN players p ON p.user_id = u.id AND p.is_active = true
+      LEFT JOIN teams t ON t.id = p.team_id
+    `;
 
-  // Join users with their player assignments
-  let users: UserWithAssignment[] = mockUsers.map((user) => {
-    const playerAssignment = mockPlayers.find((p) => p.userId === user.id && p.isActive);
-    const team = playerAssignment
-      ? mockTeams.find((t) => t.id === playerAssignment.teamId)
-      : null;
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
 
-    return {
-      id: user.id,
-      email: user.email,
-      fullName: user.fullName,
-      phone: user.phone,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-      isActive: user.isActive,
-      createdAt: user.createdAt,
-      playerId: playerAssignment?.id || null,
-      teamId: playerAssignment?.teamId || null,
-      teamName: team?.name || null,
-      teamAbbreviation: team?.abbreviation || null,
-      teamPrimaryColor: team?.primaryColor || null,
-      jerseyNumber: playerAssignment?.jerseyNumber || null,
-      primaryPosition: playerAssignment?.primaryPosition || null,
-      secondaryPosition: playerAssignment?.secondaryPosition || null,
-      bats: playerAssignment?.bats || null,
-      throws: playerAssignment?.throws || null,
-      isCaptain: playerAssignment?.isCaptain || false,
-    };
-  });
+    // Filter by search term
+    if (options.search) {
+      conditions.push(
+        `(u.full_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`
+      );
+      params.push(`%${options.search}%`);
+      paramIndex++;
+    }
 
-  // Apply filters
-  if (options.search) {
-    const searchLower = options.search.toLowerCase();
-    users = users.filter(
-      (u) =>
-        u.fullName.toLowerCase().includes(searchLower) ||
-        u.email.toLowerCase().includes(searchLower)
+    // Filter by role
+    if (options.role) {
+      conditions.push(`u.role = $${paramIndex}`);
+      params.push(options.role);
+      paramIndex++;
+    }
+
+    // Filter by team (using team name matching)
+    if (options.teamId) {
+      const staticTeam = mockTeams.find((t) => t.id === options.teamId);
+      if (staticTeam) {
+        conditions.push(`LOWER(t.name) = LOWER($${paramIndex})`);
+        params.push(staticTeam.name);
+        paramIndex++;
+      }
+    }
+
+    // Filter by assignment status
+    if (options.assignmentStatus === 'assigned') {
+      conditions.push(`p.id IS NOT NULL`);
+    } else if (options.assignmentStatus === 'unassigned') {
+      conditions.push(`p.id IS NULL`);
+    }
+
+    // Filter by active status
+    if (options.isActive !== undefined) {
+      conditions.push(`u.is_active = $${paramIndex}`);
+      params.push(options.isActive);
+      paramIndex++;
+    }
+
+    // Add WHERE clause if there are conditions
+    if (conditions.length > 0) {
+      queryText += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    // Sorting
+    const sortDir = options.sortDir === 'desc' ? 'DESC' : 'ASC';
+    let orderBy = 'u.full_name';
+    if (options.sortBy === 'email') {
+      orderBy = 'u.email';
+    } else if (options.sortBy === 'team') {
+      orderBy = `COALESCE(t.name, 'ZZZZZ')`; // Put unassigned at end
+    } else if (options.sortBy === 'createdAt') {
+      orderBy = 'u.created_at';
+    }
+    queryText += ` ORDER BY ${orderBy} ${sortDir}`;
+
+    // Get total count first
+    const countQuery = queryText.replace(
+      /SELECT[\s\S]*?FROM users u/,
+      'SELECT COUNT(*) as count FROM users u'
     );
-  }
+    // Remove ORDER BY clause from count query
+    const countQueryClean = countQuery.replace(/ORDER BY[\s\S]*$/, '');
+    const countResult = await query<{ count: string }>(countQueryClean, params);
+    const totalCount = parseInt(countResult.rows[0]?.count || '0', 10);
 
-  if (options.role) {
-    users = users.filter((u) => u.role === options.role);
-  }
+    // Pagination
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 50;
+    const offset = (page - 1) * pageSize;
 
-  if (options.teamId) {
-    users = users.filter((u) => u.teamId === options.teamId);
-  }
+    queryText += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    params.push(pageSize, offset);
 
-  if (options.assignmentStatus === 'assigned') {
-    users = users.filter((u) => u.teamId !== null);
-  } else if (options.assignmentStatus === 'unassigned') {
-    users = users.filter((u) => u.teamId === null);
-  }
+    const result = await query<{
+      id: string;
+      email: string;
+      fullName: string;
+      phone: string | null;
+      avatarUrl: string | null;
+      role: UserRole;
+      isActive: boolean;
+      createdAt: string;
+      playerId: string | null;
+      teamName: string | null;
+      teamAbbreviation: string | null;
+      teamPrimaryColor: string | null;
+      jerseyNumber: string | null;
+      primaryPosition: FieldPosition | null;
+      secondaryPosition: FieldPosition | null;
+      bats: BattingSide | null;
+      throws: ThrowingArm | null;
+      isCaptain: boolean | null;
+    }>(queryText, params);
 
-  if (options.isActive !== undefined) {
-    users = users.filter((u) => u.isActive === options.isActive);
-  }
+    // Transform results to include static team ID
+    const users: UserWithAssignment[] = result.rows.map((row) => {
+      const staticTeam = row.teamName
+        ? getStaticTeamByName(row.teamName)
+        : null;
 
-  // Sort
-  const sortDir = options.sortDir === 'desc' ? -1 : 1;
-  if (options.sortBy === 'name') {
-    users.sort((a, b) => a.fullName.localeCompare(b.fullName) * sortDir);
-  } else if (options.sortBy === 'email') {
-    users.sort((a, b) => a.email.localeCompare(b.email) * sortDir);
-  } else if (options.sortBy === 'team') {
-    users.sort((a, b) => {
-      const aTeam = a.teamName || 'zzz'; // Put unassigned at end
-      const bTeam = b.teamName || 'zzz';
-      return aTeam.localeCompare(bTeam) * sortDir;
+      return {
+        id: row.id,
+        email: row.email,
+        fullName: row.fullName,
+        phone: row.phone,
+        avatarUrl: row.avatarUrl,
+        role: row.role,
+        isActive: row.isActive,
+        createdAt: toISOString(row.createdAt),
+        playerId: row.playerId,
+        teamId: staticTeam?.id || null,
+        teamName: row.teamName,
+        teamAbbreviation: row.teamAbbreviation,
+        teamPrimaryColor: row.teamPrimaryColor,
+        jerseyNumber: row.jerseyNumber,
+        primaryPosition: row.primaryPosition,
+        secondaryPosition: row.secondaryPosition,
+        bats: row.bats,
+        throws: row.throws,
+        isCaptain: row.isCaptain ?? false,
+      };
     });
-  } else if (options.sortBy === 'createdAt') {
-    users.sort(
-      (a, b) =>
-        (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * sortDir
-    );
-  } else {
-    // Default sort by name
-    users.sort((a, b) => a.fullName.localeCompare(b.fullName));
+
+    return { users, totalCount };
+  } catch (error) {
+    console.error('[AdminUsers] Error getting users with assignments:', error);
+    throw new Error('Failed to fetch users. Please try again later.');
   }
-
-  const totalCount = users.length;
-
-  // Pagination
-  const page = options.page ?? 1;
-  const pageSize = options.pageSize ?? 50;
-  const start = (page - 1) * pageSize;
-  const paginated = users.slice(start, start + pageSize);
-
-  return {
-    users: paginated,
-    totalCount,
-  };
 }
 
 /**
  * Get a single user by ID with their assignment
  */
-export async function getUserWithAssignment(userId: string): Promise<UserWithAssignment | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+export async function getUserWithAssignment(
+  userId: string
+): Promise<UserWithAssignment | null> {
+  try {
+    const result = await query<{
+      id: string;
+      email: string;
+      fullName: string;
+      phone: string | null;
+      avatarUrl: string | null;
+      role: UserRole;
+      isActive: boolean;
+      createdAt: string;
+      playerId: string | null;
+      teamName: string | null;
+      teamAbbreviation: string | null;
+      teamPrimaryColor: string | null;
+      jerseyNumber: string | null;
+      primaryPosition: FieldPosition | null;
+      secondaryPosition: FieldPosition | null;
+      bats: BattingSide | null;
+      throws: ThrowingArm | null;
+      isCaptain: boolean | null;
+    }>(
+      `
+      SELECT
+        u.id,
+        u.email,
+        u.full_name as "fullName",
+        u.phone,
+        u.avatar_url as "avatarUrl",
+        u.role,
+        u.is_active as "isActive",
+        u.created_at as "createdAt",
+        p.id as "playerId",
+        t.name as "teamName",
+        t.abbreviation as "teamAbbreviation",
+        t.primary_color as "teamPrimaryColor",
+        p.jersey_number as "jerseyNumber",
+        p.primary_position as "primaryPosition",
+        p.secondary_position as "secondaryPosition",
+        p.bats,
+        p.throws,
+        p.is_captain as "isCaptain"
+      FROM users u
+      LEFT JOIN players p ON p.user_id = u.id AND p.is_active = true
+      LEFT JOIN teams t ON t.id = p.team_id
+      WHERE u.id = $1
+    `,
+      [userId]
+    );
 
-  const user = mockUsers.find((u) => u.id === userId);
-  if (!user) return null;
+    if (result.rows.length === 0) {
+      return null;
+    }
 
-  const playerAssignment = mockPlayers.find((p) => p.userId === user.id && p.isActive);
-  const team = playerAssignment
-    ? mockTeams.find((t) => t.id === playerAssignment.teamId)
-    : null;
+    const row = result.rows[0];
+    const staticTeam = row.teamName ? getStaticTeamByName(row.teamName) : null;
 
-  return {
-    id: user.id,
-    email: user.email,
-    fullName: user.fullName,
-    phone: user.phone,
-    avatarUrl: user.avatarUrl,
-    role: user.role,
-    isActive: user.isActive,
-    createdAt: user.createdAt,
-    playerId: playerAssignment?.id || null,
-    teamId: playerAssignment?.teamId || null,
-    teamName: team?.name || null,
-    teamAbbreviation: team?.abbreviation || null,
-    teamPrimaryColor: team?.primaryColor || null,
-    jerseyNumber: playerAssignment?.jerseyNumber || null,
-    primaryPosition: playerAssignment?.primaryPosition || null,
-    secondaryPosition: playerAssignment?.secondaryPosition || null,
-    bats: playerAssignment?.bats || null,
-    throws: playerAssignment?.throws || null,
-    isCaptain: playerAssignment?.isCaptain || false,
-  };
+    return {
+      id: row.id,
+      email: row.email,
+      fullName: row.fullName,
+      phone: row.phone,
+      avatarUrl: row.avatarUrl,
+      role: row.role,
+      isActive: row.isActive,
+      createdAt: toISOString(row.createdAt),
+      playerId: row.playerId,
+      teamId: staticTeam?.id || null,
+      teamName: row.teamName,
+      teamAbbreviation: row.teamAbbreviation,
+      teamPrimaryColor: row.teamPrimaryColor,
+      jerseyNumber: row.jerseyNumber,
+      primaryPosition: row.primaryPosition,
+      secondaryPosition: row.secondaryPosition,
+      bats: row.bats,
+      throws: row.throws,
+      isCaptain: row.isCaptain ?? false,
+    };
+  } catch (error) {
+    console.error('[AdminUsers] Error getting user with assignment:', error);
+    throw new Error('Failed to fetch user. Please try again later.');
+  }
 }
 
 /**
  * Get a player by ID with full details
  */
-export async function getPlayerById(playerId: string): Promise<PlayerWithDetails | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+export async function getPlayerById(
+  playerId: string
+): Promise<PlayerWithDetails | null> {
+  try {
+    const result = await query<{
+      id: string;
+      userId: string;
+      teamId: string;
+      seasonId: string;
+      jerseyNumber: string | null;
+      primaryPosition: FieldPosition;
+      secondaryPosition: FieldPosition | null;
+      bats: BattingSide;
+      throws: ThrowingArm;
+      isActive: boolean;
+      isCaptain: boolean;
+      joinedAt: string;
+      createdAt: string;
+      updatedAt: string;
+      userFullName: string;
+      userEmail: string;
+      userAvatarUrl: string | null;
+      userRole: UserRole;
+      teamName: string;
+      teamAbbreviation: string;
+      teamPrimaryColor: string | null;
+    }>(
+      `
+      SELECT
+        p.id,
+        p.user_id as "userId",
+        p.team_id as "teamId",
+        p.season_id as "seasonId",
+        p.jersey_number as "jerseyNumber",
+        p.primary_position as "primaryPosition",
+        p.secondary_position as "secondaryPosition",
+        p.bats,
+        p.throws,
+        p.is_active as "isActive",
+        p.is_captain as "isCaptain",
+        p.joined_at as "joinedAt",
+        p.created_at as "createdAt",
+        p.updated_at as "updatedAt",
+        u.full_name as "userFullName",
+        u.email as "userEmail",
+        u.avatar_url as "userAvatarUrl",
+        u.role as "userRole",
+        t.name as "teamName",
+        t.abbreviation as "teamAbbreviation",
+        t.primary_color as "teamPrimaryColor"
+      FROM players p
+      JOIN users u ON u.id = p.user_id
+      JOIN teams t ON t.id = p.team_id
+      WHERE p.id = $1
+    `,
+      [playerId]
+    );
 
-  const player = mockPlayers.find((p) => p.id === playerId);
-  if (!player) return null;
+    if (result.rows.length === 0) {
+      return null;
+    }
 
-  const user = mockUsers.find((u) => u.id === player.userId);
-  const team = mockTeams.find((t) => t.id === player.teamId);
+    const row = result.rows[0];
+    const staticTeam = getStaticTeamByName(row.teamName);
 
-  if (!user || !team) return null;
-
-  return {
-    ...player,
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-    },
-    team: {
-      id: team.id,
-      name: team.name,
-      abbreviation: team.abbreviation,
-      primaryColor: team.primaryColor,
-    },
-  };
+    return {
+      id: row.id,
+      userId: row.userId,
+      teamId: staticTeam?.id || row.teamId,
+      seasonId: row.seasonId,
+      jerseyNumber: row.jerseyNumber,
+      primaryPosition: row.primaryPosition,
+      secondaryPosition: row.secondaryPosition,
+      bats: row.bats,
+      throws: row.throws,
+      isActive: row.isActive,
+      isCaptain: row.isCaptain,
+      joinedAt: toISOString(row.joinedAt),
+      createdAt: toISOString(row.createdAt),
+      updatedAt: toISOString(row.updatedAt),
+      user: {
+        id: row.userId,
+        fullName: row.userFullName,
+        email: row.userEmail,
+        avatarUrl: row.userAvatarUrl,
+        role: row.userRole,
+      },
+      team: {
+        id: staticTeam?.id || row.teamId,
+        name: row.teamName,
+        abbreviation: row.teamAbbreviation,
+        primaryColor: row.teamPrimaryColor,
+      },
+    };
+  } catch (error) {
+    console.error('[AdminUsers] Error getting player by ID:', error);
+    throw new Error('Failed to fetch player. Please try again later.');
+  }
 }
 
 /**
  * Assign a user to a team (create player record)
  */
-export async function assignPlayerToTeam(input: AssignPlayerInput): Promise<PlayerWithDetails> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+export async function assignPlayerToTeam(
+  input: AssignPlayerInput
+): Promise<PlayerWithDetails> {
+  const client = await getClient();
 
-  // Check if user exists
-  const user = mockUsers.find((u) => u.id === input.userId);
-  if (!user) {
-    throw new Error('User not found');
+  try {
+    await client.query('BEGIN');
+
+    // Get the database team ID from the slug
+    const dbTeamId = await getDbTeamId(input.teamId);
+    if (!dbTeamId) {
+      throw new Error('Team not found');
+    }
+
+    // Check if user exists
+    const userResult = await client.query<{
+      id: string;
+      full_name: string;
+      email: string;
+      avatar_url: string | null;
+      role: UserRole;
+    }>('SELECT id, full_name, email, avatar_url, role FROM users WHERE id = $1', [
+      input.userId,
+    ]);
+
+    if (userResult.rows.length === 0) {
+      throw new Error('User not found');
+    }
+
+    const user = userResult.rows[0];
+
+    // Get team info
+    const teamResult = await client.query<{
+      id: string;
+      name: string;
+      abbreviation: string;
+      primary_color: string | null;
+    }>('SELECT id, name, abbreviation, primary_color FROM teams WHERE id = $1', [
+      dbTeamId,
+    ]);
+
+    if (teamResult.rows.length === 0) {
+      throw new Error('Team not found');
+    }
+
+    const team = teamResult.rows[0];
+    const staticTeam = getStaticTeamByName(team.name);
+
+    // Check if user is already assigned to a team in this season
+    const existingResult = await client.query(
+      `SELECT id FROM players
+       WHERE user_id = $1 AND is_active = true`,
+      [input.userId]
+    );
+
+    if (existingResult.rows.length > 0) {
+      throw new Error('User is already assigned to a team. Remove them first.');
+    }
+
+    // Check for duplicate jersey number on the team
+    const duplicateResult = await client.query(
+      `SELECT id FROM players
+       WHERE team_id = $1 AND jersey_number = $2 AND is_active = true`,
+      [dbTeamId, input.jerseyNumber]
+    );
+
+    if (duplicateResult.rows.length > 0) {
+      throw new Error(
+        `Jersey number ${input.jerseyNumber} is already taken on this team`
+      );
+    }
+
+    // Get active season ID
+    let seasonId: string | undefined = input.seasonId;
+    if (!seasonId) {
+      const activeSeasonId = await getActiveSeasonId();
+      if (!activeSeasonId) {
+        throw new Error('No active season found');
+      }
+      seasonId = activeSeasonId;
+    }
+
+    // Create new player assignment
+    const insertResult = await client.query<{
+      id: string;
+      user_id: string;
+      team_id: string;
+      season_id: string;
+      jersey_number: string | null;
+      primary_position: FieldPosition;
+      secondary_position: FieldPosition | null;
+      bats: BattingSide;
+      throws: ThrowingArm;
+      is_active: boolean;
+      is_captain: boolean;
+      joined_at: string;
+      created_at: string;
+      updated_at: string;
+    }>(
+      `INSERT INTO players (
+        user_id, team_id, season_id, jersey_number,
+        primary_position, secondary_position, bats, throws,
+        is_active, is_captain
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9)
+      RETURNING
+        id, user_id, team_id, season_id, jersey_number,
+        primary_position, secondary_position, bats, throws,
+        is_active, is_captain, joined_at, created_at, updated_at`,
+      [
+        input.userId,
+        dbTeamId,
+        seasonId,
+        input.jerseyNumber,
+        input.primaryPosition,
+        input.secondaryPosition || null,
+        input.bats,
+        input.throws,
+        input.isCaptain || false,
+      ]
+    );
+
+    await client.query('COMMIT');
+
+    const player = insertResult.rows[0];
+
+    return {
+      id: player.id,
+      userId: player.user_id,
+      teamId: staticTeam?.id || input.teamId,
+      seasonId: player.season_id,
+      jerseyNumber: player.jersey_number,
+      primaryPosition: player.primary_position,
+      secondaryPosition: player.secondary_position,
+      bats: player.bats,
+      throws: player.throws,
+      isActive: player.is_active,
+      isCaptain: player.is_captain,
+      joinedAt: toISOString(player.joined_at),
+      createdAt: toISOString(player.created_at),
+      updatedAt: toISOString(player.updated_at),
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+      },
+      team: {
+        id: staticTeam?.id || input.teamId,
+        name: team.name,
+        abbreviation: team.abbreviation,
+        primaryColor: team.primary_color,
+      },
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[AdminUsers] Error assigning player to team:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to assign player to team. Please try again later.');
+  } finally {
+    client.release();
   }
-
-  // Check if team exists
-  const team = mockTeams.find((t) => t.id === input.teamId);
-  if (!team) {
-    throw new Error('Team not found');
-  }
-
-  // Check if user is already assigned to a team in this season
-  const existingAssignment = mockPlayers.find(
-    (p) => p.userId === input.userId && p.isActive
-  );
-  if (existingAssignment) {
-    throw new Error('User is already assigned to a team. Remove them first.');
-  }
-
-  // Check for duplicate jersey number on the team
-  const duplicateJersey = mockPlayers.find(
-    (p) => p.teamId === input.teamId && p.jerseyNumber === input.jerseyNumber && p.isActive
-  );
-  if (duplicateJersey) {
-    throw new Error(`Jersey number ${input.jerseyNumber} is already taken on this team`);
-  }
-
-  // Create new player assignment
-  const now = new Date().toISOString();
-  const newPlayer = {
-    id: `player-${Date.now()}`,
-    userId: input.userId,
-    teamId: input.teamId,
-    seasonId: input.seasonId || 'season-2026',
-    jerseyNumber: input.jerseyNumber,
-    primaryPosition: input.primaryPosition,
-    secondaryPosition: input.secondaryPosition || null,
-    bats: input.bats,
-    throws: input.throws,
-    isActive: true,
-    isCaptain: input.isCaptain || false,
-    joinedAt: now,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  // Add to mock data array so it persists in memory
-  mockPlayers.push(newPlayer);
-
-  return {
-    ...newPlayer,
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-    },
-    team: {
-      id: team.id,
-      name: team.name,
-      abbreviation: team.abbreviation,
-      primaryColor: team.primaryColor,
-    },
-  };
 }
 
 /**
@@ -429,114 +778,242 @@ export async function updatePlayerAssignment(
   playerId: string,
   updates: UpdatePlayerInput
 ): Promise<PlayerWithDetails> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  const client = await getClient();
 
-  const player = mockPlayers.find((p) => p.id === playerId);
-  if (!player) {
-    throw new Error('Player not found');
-  }
+  try {
+    await client.query('BEGIN');
 
-  const user = mockUsers.find((u) => u.id === player.userId);
-  if (!user) {
-    throw new Error('User not found');
-  }
-
-  // If changing team, verify the new team exists
-  let team = mockTeams.find((t) => t.id === player.teamId);
-  if (updates.teamId) {
-    const newTeam = mockTeams.find((t) => t.id === updates.teamId);
-    if (!newTeam) {
-      throw new Error('Team not found');
-    }
-    team = newTeam;
-  }
-
-  if (!team) {
-    throw new Error('Team not found');
-  }
-
-  // Check for duplicate jersey number if changing jersey or team
-  if (updates.jerseyNumber || updates.teamId) {
-    const targetTeamId = updates.teamId || player.teamId;
-    const targetJersey = updates.jerseyNumber || player.jerseyNumber;
-    const duplicateJersey = mockPlayers.find(
-      (p) =>
-        p.id !== playerId &&
-        p.teamId === targetTeamId &&
-        p.jerseyNumber === targetJersey &&
-        p.isActive
+    // Get current player info
+    const playerResult = await client.query<{
+      id: string;
+      user_id: string;
+      team_id: string;
+      season_id: string;
+      jersey_number: string | null;
+      primary_position: FieldPosition;
+      secondary_position: FieldPosition | null;
+      bats: BattingSide;
+      throws: ThrowingArm;
+      is_active: boolean;
+      is_captain: boolean;
+    }>(
+      `SELECT id, user_id, team_id, season_id, jersey_number,
+              primary_position, secondary_position, bats, throws,
+              is_active, is_captain
+       FROM players WHERE id = $1`,
+      [playerId]
     );
-    if (duplicateJersey) {
-      throw new Error(`Jersey number ${targetJersey} is already taken on this team`);
+
+    if (playerResult.rows.length === 0) {
+      throw new Error('Player not found');
     }
+
+    const currentPlayer = playerResult.rows[0];
+
+    // Get the target team ID (either new team or current)
+    let targetDbTeamId = currentPlayer.team_id;
+    if (updates.teamId) {
+      const newDbTeamId = await getDbTeamId(updates.teamId);
+      if (!newDbTeamId) {
+        throw new Error('Team not found');
+      }
+      targetDbTeamId = newDbTeamId;
+    }
+
+    // Check for duplicate jersey number if changing jersey or team
+    if (updates.jerseyNumber || updates.teamId) {
+      const targetJersey = updates.jerseyNumber || currentPlayer.jersey_number;
+      const duplicateResult = await client.query(
+        `SELECT id FROM players
+         WHERE team_id = $1 AND jersey_number = $2 AND is_active = true AND id != $3`,
+        [targetDbTeamId, targetJersey, playerId]
+      );
+
+      if (duplicateResult.rows.length > 0) {
+        throw new Error(
+          `Jersey number ${targetJersey} is already taken on this team`
+        );
+      }
+    }
+
+    // Build the update query dynamically
+    const setClauses: string[] = [];
+    const params: unknown[] = [];
+    let paramIndex = 1;
+
+    if (updates.teamId !== undefined) {
+      setClauses.push(`team_id = $${paramIndex}`);
+      params.push(targetDbTeamId);
+      paramIndex++;
+    }
+    if (updates.jerseyNumber !== undefined) {
+      setClauses.push(`jersey_number = $${paramIndex}`);
+      params.push(updates.jerseyNumber);
+      paramIndex++;
+    }
+    if (updates.primaryPosition !== undefined) {
+      setClauses.push(`primary_position = $${paramIndex}`);
+      params.push(updates.primaryPosition);
+      paramIndex++;
+    }
+    if (updates.secondaryPosition !== undefined) {
+      setClauses.push(`secondary_position = $${paramIndex}`);
+      params.push(updates.secondaryPosition);
+      paramIndex++;
+    }
+    if (updates.bats !== undefined) {
+      setClauses.push(`bats = $${paramIndex}`);
+      params.push(updates.bats);
+      paramIndex++;
+    }
+    if (updates.throws !== undefined) {
+      setClauses.push(`throws = $${paramIndex}`);
+      params.push(updates.throws);
+      paramIndex++;
+    }
+    if (updates.isCaptain !== undefined) {
+      setClauses.push(`is_captain = $${paramIndex}`);
+      params.push(updates.isCaptain);
+      paramIndex++;
+    }
+    if (updates.isActive !== undefined) {
+      setClauses.push(`is_active = $${paramIndex}`);
+      params.push(updates.isActive);
+      paramIndex++;
+    }
+
+    // Add updated_at
+    setClauses.push('updated_at = NOW()');
+
+    // Add the player ID as the last parameter
+    params.push(playerId);
+
+    const updateResult = await client.query<{
+      id: string;
+      user_id: string;
+      team_id: string;
+      season_id: string;
+      jersey_number: string | null;
+      primary_position: FieldPosition;
+      secondary_position: FieldPosition | null;
+      bats: BattingSide;
+      throws: ThrowingArm;
+      is_active: boolean;
+      is_captain: boolean;
+      joined_at: string;
+      created_at: string;
+      updated_at: string;
+    }>(
+      `UPDATE players SET ${setClauses.join(', ')}
+       WHERE id = $${paramIndex}
+       RETURNING id, user_id, team_id, season_id, jersey_number,
+                 primary_position, secondary_position, bats, throws,
+                 is_active, is_captain, joined_at, created_at, updated_at`,
+      params
+    );
+
+    // Get user info
+    const userResult = await client.query<{
+      id: string;
+      full_name: string;
+      email: string;
+      avatar_url: string | null;
+      role: UserRole;
+    }>(
+      'SELECT id, full_name, email, avatar_url, role FROM users WHERE id = $1',
+      [currentPlayer.user_id]
+    );
+
+    // Get team info
+    const teamResult = await client.query<{
+      id: string;
+      name: string;
+      abbreviation: string;
+      primary_color: string | null;
+    }>(
+      'SELECT id, name, abbreviation, primary_color FROM teams WHERE id = $1',
+      [targetDbTeamId]
+    );
+
+    await client.query('COMMIT');
+
+    const player = updateResult.rows[0];
+    const user = userResult.rows[0];
+    const team = teamResult.rows[0];
+    const staticTeam = getStaticTeamByName(team.name);
+
+    return {
+      id: player.id,
+      userId: player.user_id,
+      teamId: staticTeam?.id || updates.teamId || mockTeams[0].id,
+      seasonId: player.season_id,
+      jerseyNumber: player.jersey_number,
+      primaryPosition: player.primary_position,
+      secondaryPosition: player.secondary_position,
+      bats: player.bats,
+      throws: player.throws,
+      isActive: player.is_active,
+      isCaptain: player.is_captain,
+      joinedAt: toISOString(player.joined_at),
+      createdAt: toISOString(player.created_at),
+      updatedAt: toISOString(player.updated_at),
+      user: {
+        id: user.id,
+        fullName: user.full_name,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+      },
+      team: {
+        id: staticTeam?.id || team.id,
+        name: team.name,
+        abbreviation: team.abbreviation,
+        primaryColor: team.primary_color,
+      },
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('[AdminUsers] Error updating player assignment:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to update player. Please try again later.');
+  } finally {
+    client.release();
   }
-
-  // Find the player index and update in the mock array
-  const playerIndex = mockPlayers.findIndex((p) => p.id === playerId);
-  if (playerIndex === -1) {
-    throw new Error('Player not found');
-  }
-
-  // Build updated player
-  const updatedPlayer = {
-    ...player,
-    teamId: updates.teamId ?? player.teamId,
-    jerseyNumber: updates.jerseyNumber ?? player.jerseyNumber,
-    primaryPosition: updates.primaryPosition ?? player.primaryPosition,
-    secondaryPosition:
-      updates.secondaryPosition !== undefined
-        ? updates.secondaryPosition
-        : player.secondaryPosition,
-    bats: updates.bats ?? player.bats,
-    throws: updates.throws ?? player.throws,
-    isCaptain: updates.isCaptain ?? player.isCaptain,
-    isActive: updates.isActive ?? player.isActive,
-    updatedAt: new Date().toISOString(),
-  };
-
-  // Update the mock array so changes persist in memory
-  mockPlayers[playerIndex] = updatedPlayer;
-
-  return {
-    ...updatedPlayer,
-    user: {
-      id: user.id,
-      fullName: user.fullName,
-      email: user.email,
-      avatarUrl: user.avatarUrl,
-      role: user.role,
-    },
-    team: {
-      id: team.id,
-      name: team.name,
-      abbreviation: team.abbreviation,
-      primaryColor: team.primaryColor,
-    },
-  };
 }
 
 /**
  * Remove a player from their team (soft delete - sets isActive to false)
  */
 export async function removePlayerFromTeam(playerId: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    // Check if player exists and is active
+    const checkResult = await query<{ is_active: boolean }>(
+      'SELECT is_active FROM players WHERE id = $1',
+      [playerId]
+    );
 
-  const playerIndex = mockPlayers.findIndex((p) => p.id === playerId);
-  if (playerIndex === -1) {
-    throw new Error('Player not found');
+    if (checkResult.rows.length === 0) {
+      throw new Error('Player not found');
+    }
+
+    if (!checkResult.rows[0].is_active) {
+      throw new Error('Player is already removed from their team');
+    }
+
+    // Soft delete by setting is_active to false
+    await query(
+      `UPDATE players SET is_active = false, updated_at = NOW() WHERE id = $1`,
+      [playerId]
+    );
+  } catch (error) {
+    console.error('[AdminUsers] Error removing player from team:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('Failed to remove player. Please try again later.');
   }
-
-  const player = mockPlayers[playerIndex];
-  if (!player.isActive) {
-    throw new Error('Player is already removed from their team');
-  }
-
-  // Update the mock array to set isActive to false so changes persist in memory
-  mockPlayers[playerIndex] = {
-    ...player,
-    isActive: false,
-    updatedAt: new Date().toISOString(),
-  };
 }
 
 /**
@@ -551,15 +1028,49 @@ export async function getTeamsForAssignment(): Promise<
     playerCount: number;
   }>
 > {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    const result = await query<{
+      name: string;
+      abbreviation: string;
+      primary_color: string | null;
+      player_count: string;
+    }>(
+      `SELECT
+        t.name,
+        t.abbreviation,
+        t.primary_color,
+        COUNT(p.id) FILTER (WHERE p.is_active = true) as player_count
+      FROM teams t
+      LEFT JOIN players p ON p.team_id = t.id
+      WHERE t.is_active = true
+      GROUP BY t.id, t.name, t.abbreviation, t.primary_color
+      ORDER BY t.name`
+    );
 
-  return mockTeams.map((team) => ({
-    id: team.id,
-    name: team.name,
-    abbreviation: team.abbreviation,
-    primaryColor: team.primaryColor,
-    playerCount: mockPlayers.filter((p) => p.teamId === team.id && p.isActive).length,
-  }));
+    // Map to static teams
+    return mockTeams.map((staticTeam) => {
+      const dbTeam = result.rows.find(
+        (r) => r.name.toLowerCase() === staticTeam.name.toLowerCase()
+      );
+      return {
+        id: staticTeam.id,
+        name: staticTeam.name,
+        abbreviation: staticTeam.abbreviation,
+        primaryColor: staticTeam.primaryColor,
+        playerCount: parseInt(dbTeam?.player_count || '0', 10),
+      };
+    });
+  } catch (error) {
+    console.error('[AdminUsers] Error getting teams for assignment:', error);
+    // Fallback to static teams with 0 players
+    return mockTeams.map((team) => ({
+      id: team.id,
+      name: team.name,
+      abbreviation: team.abbreviation,
+      primaryColor: team.primaryColor,
+      playerCount: 0,
+    }));
+  }
 }
 
 /**
@@ -570,17 +1081,29 @@ export async function isJerseyNumberAvailable(
   jerseyNumber: string,
   excludePlayerId?: string
 ): Promise<boolean> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    const dbTeamId = await getDbTeamId(teamId);
+    if (!dbTeamId) {
+      return false;
+    }
 
-  const taken = mockPlayers.find(
-    (p) =>
-      p.teamId === teamId &&
-      p.jerseyNumber === jerseyNumber &&
-      p.isActive &&
-      p.id !== excludePlayerId
-  );
+    let queryText = `
+      SELECT id FROM players
+      WHERE team_id = $1 AND jersey_number = $2 AND is_active = true
+    `;
+    const params: unknown[] = [dbTeamId, jerseyNumber];
 
-  return !taken;
+    if (excludePlayerId) {
+      queryText += ' AND id != $3';
+      params.push(excludePlayerId);
+    }
+
+    const result = await query(queryText, params);
+    return result.rows.length === 0;
+  } catch (error) {
+    console.error('[AdminUsers] Error checking jersey availability:', error);
+    return false;
+  }
 }
 
 /**
@@ -613,39 +1136,88 @@ export interface TeamWithRoster {
  * Get all teams with their player rosters for the team directory
  */
 export async function getAllTeamsWithRosters(): Promise<TeamWithRoster[]> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  try {
+    const result = await query<{
+      teamName: string;
+      playerId: string;
+      userFullName: string;
+      userEmail: string;
+      userPhone: string | null;
+      userAvatarUrl: string | null;
+      jerseyNumber: string | null;
+      primaryPosition: FieldPosition | null;
+      isCaptain: boolean;
+    }>(
+      `SELECT
+        t.name as "teamName",
+        p.id as "playerId",
+        u.full_name as "userFullName",
+        u.email as "userEmail",
+        u.phone as "userPhone",
+        u.avatar_url as "userAvatarUrl",
+        p.jersey_number as "jerseyNumber",
+        p.primary_position as "primaryPosition",
+        p.is_captain as "isCaptain"
+      FROM teams t
+      LEFT JOIN players p ON p.team_id = t.id AND p.is_active = true
+      LEFT JOIN users u ON u.id = p.user_id
+      WHERE t.is_active = true
+      ORDER BY t.name, p.is_captain DESC, u.full_name`
+    );
 
-  return mockTeams.map((team) => {
-    // Get all active players for this team
-    const teamPlayers = mockPlayers
-      .filter((p) => p.teamId === team.id && p.isActive)
-      .map((player) => {
-        const user = mockUsers.find((u) => u.id === player.userId);
-        return {
-          id: player.id,
-          fullName: user?.fullName ?? 'Unknown',
-          email: user?.email ?? '',
-          phone: user?.phone ?? null,
-          avatarUrl: user?.avatarUrl ?? null,
-          jerseyNumber: player.jerseyNumber,
-          primaryPosition: player.primaryPosition,
-          isCaptain: player.isCaptain,
-        };
-      })
-      // Sort by captain first, then by name
-      .sort((a, b) => {
-        if (a.isCaptain && !b.isCaptain) return -1;
-        if (!a.isCaptain && b.isCaptain) return 1;
-        return a.fullName.localeCompare(b.fullName);
+    // Group by team
+    const teamMap = new Map<
+      string,
+      { staticTeam: (typeof mockTeams)[0]; players: PlayerContactInfo[] }
+    >();
+
+    // Initialize all teams with empty player arrays
+    for (const staticTeam of mockTeams) {
+      teamMap.set(staticTeam.name.toLowerCase(), {
+        staticTeam,
+        players: [],
       });
+    }
 
-    return {
+    // Add players to their teams
+    for (const row of result.rows) {
+      const teamData = teamMap.get(row.teamName.toLowerCase());
+      if (teamData && row.playerId) {
+        teamData.players.push({
+          id: row.playerId,
+          fullName: row.userFullName,
+          email: row.userEmail,
+          phone: row.userPhone,
+          avatarUrl: row.userAvatarUrl,
+          jerseyNumber: row.jerseyNumber,
+          primaryPosition: row.primaryPosition,
+          isCaptain: row.isCaptain,
+        });
+      }
+    }
+
+    // Convert to array
+    return mockTeams.map((staticTeam) => {
+      const teamData = teamMap.get(staticTeam.name.toLowerCase());
+      return {
+        id: staticTeam.id,
+        name: staticTeam.name,
+        abbreviation: staticTeam.abbreviation,
+        primaryColor: staticTeam.primaryColor,
+        secondaryColor: staticTeam.secondaryColor,
+        players: teamData?.players || [],
+      };
+    });
+  } catch (error) {
+    console.error('[AdminUsers] Error getting teams with rosters:', error);
+    // Fallback to static teams with empty rosters
+    return mockTeams.map((team) => ({
       id: team.id,
       name: team.name,
       abbreviation: team.abbreviation,
       primaryColor: team.primaryColor,
       secondaryColor: team.secondaryColor,
-      players: teamPlayers,
-    };
-  });
+      players: [],
+    }));
+  }
 }
