@@ -1,6 +1,3 @@
-"use client";
-
-import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -18,6 +15,7 @@ import {
   battingStats,
   pitchingStats,
 } from "@/lib/mock-data";
+import { getTeamById, getTeamRoster } from "@/lib/db/queries";
 import {
   ChevronLeft,
   Calendar,
@@ -35,16 +33,45 @@ interface TeamPageProps {
  * Team Profile Page
  * Displays detailed team information, roster, and games
  */
-export default function TeamPage({ params }: TeamPageProps) {
-  const { teamId } = use(params);
-  const team = getTeamDetailsById(teamId);
+export default async function TeamPage({ params }: TeamPageProps) {
+  const { teamId } = await params;
+
+  // Check if this is a UUID (database team) or slug (mock data)
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+
+  // Fetch team from database for UUIDs, mock data for slugs
+  const team = isUUID
+    ? await getTeamById(teamId)
+    : getTeamDetailsById(teamId);
 
   if (!team) {
     notFound();
   }
 
-  const roster = getRosterByTeamId(teamId);
-  const allGames = getGamesByTeam(teamId);
+  // Fetch roster from database for UUIDs, mock data for slugs
+  const rosterData = isUUID
+    ? await getTeamRoster(teamId)
+    : null;
+  const roster = isUUID
+    ? (rosterData?.players || [])
+    : getRosterByTeamId(teamId);
+
+  // Games are only available for mock data teams for now
+  const allGames = isUUID ? [] : getGamesByTeam(teamId);
+
+  // Normalize team object structure for rendering
+  const normalizedTeam = {
+    id: team.id,
+    name: team.name,
+    abbreviation: team.abbreviation,
+    primaryColor: team.primaryColor || '#1B3A5F',
+    secondaryColor: team.secondaryColor || '#6B7280',
+    wins: 'wins' in team ? team.wins : 0,
+    losses: 'losses' in team ? team.losses : 0,
+    ties: 'ties' in team ? team.ties : 0,
+    runsScored: 'runsScored' in team ? team.runsScored : 0,
+    runsAllowed: 'runsAllowed' in team ? team.runsAllowed : 0,
+  };
 
   // Separate upcoming and recent games
   const today = new Date();
@@ -99,7 +126,7 @@ export default function TeamPage({ params }: TeamPageProps) {
         </div>
 
         {/* Team Header */}
-        <TeamHeader team={team} />
+        <TeamHeader team={normalizedTeam} />
 
         {/* Team Stats Summary */}
         <section className="container mx-auto px-4 -mt-6 relative z-10">
@@ -108,25 +135,25 @@ export default function TeamPage({ params }: TeamPageProps) {
               icon={<Target className="h-5 w-5" />}
               label="Team AVG"
               value={teamAvg}
-              color={team.primaryColor}
+              color={normalizedTeam.primaryColor}
             />
             <StatCard
               icon={<TrendingUp className="h-5 w-5" />}
               label="Team ERA"
               value={teamEra}
-              color={team.primaryColor}
+              color={normalizedTeam.primaryColor}
             />
             <StatCard
               icon={<Award className="h-5 w-5" />}
               label="Home Runs"
               value={totalHR.toString()}
-              color={team.primaryColor}
+              color={normalizedTeam.primaryColor}
             />
             <StatCard
               icon={<Users className="h-5 w-5" />}
               label="Stolen Bases"
               value={totalSB.toString()}
-              color={team.primaryColor}
+              color={normalizedTeam.primaryColor}
             />
           </div>
         </section>
@@ -147,7 +174,7 @@ export default function TeamPage({ params }: TeamPageProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-6">
-                  <RosterTable roster={roster} teamPrimaryColor={team.primaryColor} />
+                  <RosterTable roster={roster} teamPrimaryColor={normalizedTeam.primaryColor} />
                 </CardContent>
               </Card>
             </div>

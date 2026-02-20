@@ -307,11 +307,115 @@ export async function getTeamById(teamId: string): Promise<TeamWithManager | nul
 
 /**
  * Get team roster
+ * Supports both database UUIDs and mock data slugs
  */
 export async function getTeamRoster(teamId: string): Promise<{
   team: Pick<TeamWithManager, 'id' | 'name' | 'abbreviation' | 'primaryColor' | 'secondaryColor'>;
   players: PlayerWithDetails[];
 } | null> {
+  // Check if teamId looks like a UUID (database ID) vs slug (mock data)
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      // Get team info
+      const teamResult = await query<{
+        id: string;
+        name: string;
+        abbreviation: string;
+        primary_color: string | null;
+        secondary_color: string | null;
+      }>(
+        `SELECT id, name, abbreviation, primary_color, secondary_color
+         FROM teams WHERE id = $1`,
+        [teamId]
+      );
+
+      if (teamResult.rows.length === 0) {
+        return null;
+      }
+
+      const teamRow = teamResult.rows[0];
+
+      // Get players on this team
+      const playersResult = await query<{
+        id: string;
+        user_id: string;
+        team_id: string;
+        season_id: string;
+        jersey_number: string | null;
+        primary_position: string | null;
+        secondary_position: string | null;
+        bats: string | null;
+        throws: string | null;
+        is_active: boolean;
+        is_captain: boolean;
+        joined_at: string;
+        created_at: string;
+        updated_at: string;
+        full_name: string;
+        email: string;
+        avatar_url: string | null;
+      }>(
+        `SELECT p.id, p.user_id, p.team_id, p.season_id, p.jersey_number,
+                p.primary_position, p.secondary_position, p.bats, p.throws,
+                p.is_active, p.is_captain, p.joined_at, p.created_at, p.updated_at,
+                u.full_name, u.email, u.avatar_url
+         FROM players p
+         JOIN users u ON u.id = p.user_id
+         WHERE p.team_id = $1 AND p.is_active = true
+         ORDER BY p.jersey_number`,
+        [teamId]
+      );
+
+      const players: PlayerWithDetails[] = playersResult.rows.map((row) => ({
+        id: row.id,
+        userId: row.user_id,
+        teamId: row.team_id,
+        seasonId: row.season_id,
+        jerseyNumber: row.jersey_number,
+        primaryPosition: row.primary_position as PlayerWithDetails['primaryPosition'],
+        secondaryPosition: row.secondary_position as PlayerWithDetails['secondaryPosition'],
+        bats: (row.bats as 'L' | 'R' | 'S') || 'R',
+        throws: (row.throws as 'L' | 'R') || 'R',
+        isActive: row.is_active,
+        isCaptain: row.is_captain,
+        joinedAt: row.joined_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        user: {
+          id: row.user_id,
+          fullName: row.full_name,
+          email: row.email,
+          avatarUrl: row.avatar_url,
+        },
+        team: {
+          id: teamRow.id,
+          name: teamRow.name,
+          abbreviation: teamRow.abbreviation,
+          primaryColor: teamRow.primary_color,
+        },
+      }));
+
+      return {
+        team: {
+          id: teamRow.id,
+          name: teamRow.name,
+          abbreviation: teamRow.abbreviation,
+          primaryColor: teamRow.primary_color,
+          secondaryColor: teamRow.secondary_color,
+        },
+        players,
+      };
+    } catch (error) {
+      console.error('[Teams] Error fetching roster from database:', error);
+      return null;
+    }
+  }
+
+  // Fall back to mock data for slug IDs
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const team = teamsStore.find((t) => t.id === teamId);
