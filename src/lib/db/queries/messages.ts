@@ -223,21 +223,59 @@ const teamMemberships: Record<string, string[]> = {
 
 /**
  * Check if a user is a member of a team
+ * Supports both mock data slug IDs and database UUIDs
  */
 export async function isTeamMember(userId: string, teamId: string): Promise<boolean> {
-  await new Promise((resolve) => setTimeout(resolve, 5));
-  return teamMemberships[teamId]?.includes(userId) ?? false;
+  // First check mock data (for backwards compatibility)
+  if (teamMemberships[teamId]?.includes(userId)) {
+    return true;
+  }
+
+  // Check database for UUID-based team IDs
+  try {
+    const { query } = await import('../client');
+    const result = await query<{ id: string }>(
+      `SELECT p.id FROM players p
+       WHERE p.user_id = $1 AND p.team_id = $2 AND p.is_active = true`,
+      [userId, teamId]
+    );
+    return result.rows.length > 0;
+  } catch (error) {
+    console.error('[Messages] Error checking team membership:', error);
+    return false;
+  }
 }
 
 /**
  * Check if a user is a team manager or admin
+ * Supports both mock data slug IDs and database UUIDs
  */
 export async function isTeamManagerOrAdmin(userId: string, teamId: string): Promise<boolean> {
-  await new Promise((resolve) => setTimeout(resolve, 5));
-  // For mock data, the first user in each team is the manager
+  // First check mock data (for backwards compatibility)
   const members = teamMemberships[teamId];
-  if (!members || members.length === 0) return false;
-  return members[0] === userId;
+  if (members && members.length > 0 && members[0] === userId) {
+    return true;
+  }
+
+  // Check database - user is manager if they're the team captain or have manager/admin role
+  try {
+    const { query } = await import('../client');
+    const result = await query<{ is_captain: boolean; role: string }>(
+      `SELECT p.is_captain, u.role
+       FROM players p
+       JOIN users u ON u.id = p.user_id
+       WHERE p.user_id = $1 AND p.team_id = $2 AND p.is_active = true`,
+      [userId, teamId]
+    );
+
+    if (result.rows.length === 0) return false;
+
+    const { is_captain, role } = result.rows[0];
+    return is_captain || role === 'manager' || role === 'admin' || role === 'commissioner';
+  } catch (error) {
+    console.error('[Messages] Error checking team manager status:', error);
+    return false;
+  }
 }
 
 /**
@@ -286,6 +324,7 @@ function transformMessage(
 
 /**
  * Get messages for a team with cursor-based pagination
+ * Supports both mock data (slug IDs) and database (UUID IDs)
  */
 export async function getTeamMessages(
   teamId: string,
@@ -297,9 +336,119 @@ export async function getTeamMessages(
     pinnedOnly?: boolean;
   }
 ): Promise<MessagesListResponse> {
-  await new Promise((resolve) => setTimeout(resolve, 20));
-
   const { channel = DEFAULT_CHANNEL, cursor, limit = 50, direction = 'older', pinnedOnly = false } = options;
+
+  // Check if this is a UUID (database team) or slug (mock data)
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(teamId);
+
+  if (isUUID) {
+    // Use database for UUID team IDs
+    try {
+      const { query } = await import('../client');
+
+      // Build the query with optional cursor
+      let queryText = `
+        SELECT m.id, m.team_id, m.author_id, m.content, m.reply_to_id,
+               m.is_pinned, m.is_edited, m.edited_at, m.is_deleted, m.deleted_at, m.created_at,
+               u.full_name as author_name, u.avatar_url as author_avatar
+        FROM messages m
+        JOIN users u ON u.id = m.author_id
+        WHERE m.team_id = $1 AND m.is_deleted = false
+      `;
+      const params: unknown[] = [teamId];
+      let paramIndex = 2;
+
+      if (pinnedOnly) {
+        queryText += ` AND m.is_pinned = true`;
+      }
+
+      if (cursor) {
+        const cursorResult = await query<{ created_at: string }>(
+          'SELECT created_at FROM messages WHERE id = $1',
+          [cursor]
+        );
+        if (cursorResult.rows.length > 0) {
+          const cursorDate = cursorResult.rows[0].created_at;
+          queryText += direction === 'older'
+            ? ` AND m.created_at < $${paramIndex}`
+            : ` AND m.created_at > $${paramIndex}`;
+          params.push(cursorDate);
+          paramIndex++;
+        }
+      }
+
+      queryText += direction === 'older'
+        ? ` ORDER BY m.created_at DESC`
+        : ` ORDER BY m.created_at ASC`;
+      queryText += ` LIMIT $${paramIndex}`;
+      params.push(limit + 1); // Fetch one extra to check hasMore
+
+      const result = await query<{
+        id: string;
+        team_id: string;
+        author_id: string;
+        content: string;
+        reply_to_id: string | null;
+        is_pinned: boolean;
+        is_edited: boolean;
+        edited_at: string | null;
+        is_deleted: boolean;
+        deleted_at: string | null;
+        created_at: string;
+        author_name: string;
+        author_avatar: string | null;
+      }>(queryText, params);
+
+      const hasMore = result.rows.length > limit;
+      const rows = hasMore ? result.rows.slice(0, limit) : result.rows;
+
+      // Get pinned count
+      const pinnedResult = await query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM messages WHERE team_id = $1 AND is_pinned = true AND is_deleted = false',
+        [teamId]
+      );
+      const totalPinned = parseInt(pinnedResult.rows[0]?.count || '0', 10);
+
+      const messages: MessageResponse[] = rows.map((row) => ({
+        id: row.id,
+        teamId: row.team_id,
+        channel: channel, // Database doesn't have channel yet, default to requested
+        authorId: row.author_id,
+        content: row.content,
+        replyToId: row.reply_to_id,
+        isPinned: row.is_pinned,
+        isEdited: row.is_edited,
+        editedAt: row.edited_at,
+        isDeleted: row.is_deleted,
+        deletedAt: row.deleted_at,
+        createdAt: row.created_at,
+        author: {
+          id: row.author_id,
+          fullName: row.author_name,
+          avatarUrl: row.author_avatar,
+        },
+        replyTo: null, // TODO: fetch reply info if needed
+      }));
+
+      return {
+        messages,
+        cursor: {
+          next: hasMore && messages.length > 0 ? messages[messages.length - 1].id : null,
+          previous: cursor ? rows[0]?.id ?? null : null,
+        },
+        hasMore,
+        totalPinned,
+        channel,
+      };
+    } catch (error) {
+      console.error('[Messages] Error fetching from database:', error);
+      // Return empty on error
+      return { messages: [], cursor: { next: null, previous: null }, hasMore: false, totalPinned: 0, channel };
+    }
+  }
+
+  // Fall back to mock data for slug IDs
+  await new Promise((resolve) => setTimeout(resolve, 20));
 
   // Filter messages for this team and channel
   let teamMessages = mockMessages.filter(
@@ -365,6 +514,7 @@ export async function getMessageById(
 
 /**
  * Create a new message
+ * Stores in database for UUID team IDs, mock data for slug IDs
  */
 export async function createMessage(data: {
   teamId: string;
@@ -373,6 +523,66 @@ export async function createMessage(data: {
   channel?: ChannelType;
   replyToId?: string | null;
 }): Promise<MessageResponse> {
+  // Check if this is a UUID (database team) or slug (mock data)
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.teamId);
+
+  if (isUUID) {
+    // Store in database for UUID team IDs
+    try {
+      const { query } = await import('../client');
+
+      const result = await query<{
+        id: string;
+        team_id: string;
+        author_id: string;
+        content: string;
+        reply_to_id: string | null;
+        is_pinned: boolean;
+        is_edited: boolean;
+        edited_at: string | null;
+        is_deleted: boolean;
+        deleted_at: string | null;
+        created_at: string;
+      }>(
+        `INSERT INTO messages (team_id, author_id, content, reply_to_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING id, team_id, author_id, content, reply_to_id,
+                   is_pinned, is_edited, edited_at, is_deleted, deleted_at, created_at`,
+        [data.teamId, data.authorId, data.content, data.replyToId || null]
+      );
+
+      const row = result.rows[0];
+
+      // Fetch author info
+      const user = await getUserWithAssignment(data.authorId);
+
+      return {
+        id: row.id,
+        teamId: row.team_id,
+        channel: data.channel ?? DEFAULT_CHANNEL,
+        authorId: row.author_id,
+        content: row.content,
+        replyToId: row.reply_to_id,
+        isPinned: row.is_pinned,
+        isEdited: row.is_edited,
+        editedAt: row.edited_at,
+        isDeleted: row.is_deleted,
+        deletedAt: row.deleted_at,
+        createdAt: row.created_at,
+        author: {
+          id: data.authorId,
+          fullName: user?.fullName ?? 'Unknown User',
+          avatarUrl: user?.avatarUrl ?? null,
+        },
+        replyTo: null,
+      };
+    } catch (error) {
+      console.error('[Messages] Error creating message in database:', error);
+      throw new Error('Failed to create message');
+    }
+  }
+
+  // Fall back to mock data for slug IDs
   await new Promise((resolve) => setTimeout(resolve, 20));
 
   // Fetch the user's actual name from the database

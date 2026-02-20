@@ -50,6 +50,12 @@ export async function GET() {
     });
   } catch (error) {
     console.error('[API] Team status check error:', error);
+    // Log more details for debugging
+    if (error instanceof Error) {
+      console.error('[API] Error name:', error.name);
+      console.error('[API] Error message:', error.message);
+      console.error('[API] Error stack:', error.stack);
+    }
     return internalErrorResponse('Failed to check team status');
   }
 }

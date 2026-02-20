@@ -55,6 +55,8 @@ interface ChatContainerProps {
   isLoading?: boolean;
   /** Whether a message is being sent */
   isSending?: boolean;
+  /** Hide the header (use when nested inside another component with its own header) */
+  hideHeader?: boolean;
   /** Additional CSS classes */
   className?: string;
 }
@@ -74,6 +76,7 @@ export function ChatContainer({
   onMembersClick,
   isLoading = false,
   isSending = false,
+  hideHeader = false,
   className,
 }: ChatContainerProps) {
   const [replyingTo, setReplyingTo] = useState<MessageWithAuthor | null>(null);
@@ -146,75 +149,77 @@ export function ChatContainer({
         className
       )}
     >
-      {/* Header */}
-      <header
-        className="relative shrink-0 border-b-2 border-cream-dark bg-ivory px-4 py-3"
-        style={{ borderTopColor: teamColor }}
-      >
-        {/* Team color accent bar */}
-        <div
-          className="absolute inset-x-0 top-0 h-1"
-          style={{ backgroundColor: teamColor }}
-          aria-hidden="true"
-        />
+      {/* Header - hidden when used inside another component with its own header */}
+      {!hideHeader && (
+        <header
+          className="relative shrink-0 border-b-2 border-cream-dark bg-ivory px-4 py-3"
+          style={{ borderTopColor: teamColor }}
+        >
+          {/* Team color accent bar */}
+          <div
+            className="absolute inset-x-0 top-0 h-1"
+            style={{ backgroundColor: teamColor }}
+            aria-hidden="true"
+          />
 
-        <div className="flex items-center justify-between">
-          {/* Team info */}
-          <div className="flex items-center gap-3">
-            {/* Team logo placeholder */}
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm"
-              style={{ backgroundColor: teamColor }}
-              aria-hidden="true"
-            >
-              <span className="font-headline text-sm font-bold text-chalk">
-                {teamName.slice(0, 2).toUpperCase()}
-              </span>
+          <div className="flex items-center justify-between">
+            {/* Team info */}
+            <div className="flex items-center gap-3">
+              {/* Team logo placeholder */}
+              <div
+                className="flex h-10 w-10 items-center justify-center rounded-full shadow-sm"
+                style={{ backgroundColor: teamColor }}
+                aria-hidden="true"
+              >
+                <span className="font-headline text-sm font-bold text-chalk">
+                  {teamName.slice(0, 2).toUpperCase()}
+                </span>
+              </div>
+
+              <div>
+                <h2 className="font-headline text-lg font-semibold uppercase tracking-wide text-navy">
+                  {teamName} Chat
+                </h2>
+                {onlineCount !== undefined && (
+                  <div className="flex items-center gap-1.5 text-xs text-charcoal-light">
+                    <span
+                      className="h-2 w-2 rounded-full bg-field"
+                      aria-hidden="true"
+                    />
+                    <span>{onlineCount} online</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div>
-              <h2 className="font-headline text-lg font-semibold uppercase tracking-wide text-navy">
-                {teamName} Chat
-              </h2>
-              {onlineCount !== undefined && (
-                <div className="flex items-center gap-1.5 text-xs text-charcoal-light">
-                  <span
-                    className="h-2 w-2 rounded-full bg-field"
-                    aria-hidden="true"
-                  />
-                  <span>{onlineCount} online</span>
-                </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-1">
+              {onMembersClick && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onMembersClick}
+                  aria-label="View team members"
+                  className="text-charcoal-light hover:text-navy"
+                >
+                  <Users className="h-5 w-5" />
+                </Button>
+              )}
+              {onSettingsClick && canPin && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onSettingsClick}
+                  aria-label="Chat settings"
+                  className="text-charcoal-light hover:text-navy"
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
               )}
             </div>
           </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1">
-            {onMembersClick && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onMembersClick}
-                aria-label="View team members"
-                className="text-charcoal-light hover:text-navy"
-              >
-                <Users className="h-5 w-5" />
-              </Button>
-            )}
-            {onSettingsClick && canPin && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={onSettingsClick}
-                aria-label="Chat settings"
-                className="text-charcoal-light hover:text-navy"
-              >
-                <Settings className="h-5 w-5" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* Pinned messages banner */}
       <PinnedMessages

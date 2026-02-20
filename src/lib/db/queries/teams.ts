@@ -239,14 +239,70 @@ export async function getAllTeams(options?: {
 
 /**
  * Get a single team by ID
+ * Supports both database UUIDs and mock data slugs
  */
 export async function getTeamById(teamId: string): Promise<TeamWithManager | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // First try mock data (for backwards compatibility with slug IDs like 'athletics')
+  const mockTeam = teamsStore.find((t) => t.id === teamId);
+  if (mockTeam) {
+    return transformTeam(mockTeam);
+  }
 
-  const team = teamsStore.find((t) => t.id === teamId);
-  if (!team) return null;
+  // If not found in mock data, try database (for UUID IDs)
+  try {
+    const { query } = await import('../client');
+    const result = await query<{
+      id: string;
+      name: string;
+      abbreviation: string;
+      primary_color: string | null;
+      secondary_color: string | null;
+      manager_id: string | null;
+      season_id: string;
+      wins: number;
+      losses: number;
+      ties: number;
+      runs_scored: number;
+      runs_allowed: number;
+      is_active: boolean;
+      created_at: string;
+      updated_at: string;
+    }>(
+      `SELECT id, name, abbreviation, primary_color, secondary_color,
+              manager_id, season_id, wins, losses, ties,
+              runs_scored, runs_allowed, is_active, created_at, updated_at
+       FROM teams WHERE id = $1`,
+      [teamId]
+    );
 
-  return transformTeam(team);
+    if (result.rows.length === 0) {
+      return null;
+    }
+
+    const row = result.rows[0];
+    return {
+      id: row.id,
+      name: row.name,
+      abbreviation: row.abbreviation,
+      logoUrl: null,
+      primaryColor: row.primary_color,
+      secondaryColor: row.secondary_color,
+      managerId: row.manager_id,
+      seasonId: row.season_id,
+      wins: row.wins,
+      losses: row.losses,
+      ties: row.ties,
+      runsScored: row.runs_scored,
+      runsAllowed: row.runs_allowed,
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      manager: null,
+    };
+  } catch (error) {
+    console.error('[Teams] Error fetching team from database:', error);
+    return null;
+  }
 }
 
 /**

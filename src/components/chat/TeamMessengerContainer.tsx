@@ -530,6 +530,7 @@ export function TeamMessengerContainer({
                 onDeleteMessage={handleDeleteMessage}
                 isLoading={false}
                 isSending={isSending}
+                hideHeader
                 className="flex-1 border-0 shadow-none"
               />
             )}
