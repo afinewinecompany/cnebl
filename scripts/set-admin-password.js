@@ -1,14 +1,28 @@
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
+
+// Validate DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL not set in .env.local');
+  console.log('\nPlease add your Railway PostgreSQL connection string:');
+  console.log('DATABASE_URL=postgresql://user:password@host:port/database');
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: 'postgresql://postgres:ixdYQXwrxloiTcUwCZKYJNEgJYLXGOvY@switchback.proxy.rlwy.net:50559/railway',
-  ssl: { rejectUnauthorized: false }
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: true }
+    : { rejectUnauthorized: false }
 });
 
 async function setAdminPassword() {
-  const email = 'admin@cnebl.com';
-  const password = '#Spring2026';
+  // Get email and password from command line args or use defaults
+  const email = process.argv[2] || 'dylanmerlo@gmail.com';
+  const password = process.argv[3] || '#DM$pring23';
   const saltRounds = 12;
 
   try {
@@ -50,6 +64,18 @@ async function setAdminPassword() {
   } finally {
     pool.end();
   }
+}
+
+// Show usage if --help is passed
+if (process.argv.includes('--help')) {
+  console.log('Usage: node scripts/set-admin-password.js [email] [password]');
+  console.log('');
+  console.log('Examples:');
+  console.log('  node scripts/set-admin-password.js');
+  console.log('  node scripts/set-admin-password.js dylanmerlo@gmail.com "#DM$pring23"');
+  console.log('');
+  console.log('Defaults: dylanmerlo@gmail.com / #DM$pring23');
+  process.exit(0);
 }
 
 setAdminPassword();
