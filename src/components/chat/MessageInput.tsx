@@ -18,7 +18,7 @@ import { useState, useRef, useCallback, useEffect, KeyboardEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Send, X, Reply } from "lucide-react";
+import { Send, X, Reply, Pencil, Check } from "lucide-react";
 import type { MessageWithAuthor } from "./types";
 
 interface MessageInputProps {
@@ -28,6 +28,12 @@ interface MessageInputProps {
   replyingTo?: MessageWithAuthor | null;
   /** Callback to cancel reply mode */
   onCancelReply?: () => void;
+  /** Message being edited */
+  editingMessage?: MessageWithAuthor | null;
+  /** Callback when user submits an edit */
+  onEdit?: (message: MessageWithAuthor, newContent: string) => void;
+  /** Callback to cancel edit mode */
+  onCancelEdit?: () => void;
   /** Maximum character limit */
   maxLength?: number;
   /** Placeholder text */
@@ -44,6 +50,9 @@ export function MessageInput({
   onSend,
   replyingTo,
   onCancelReply,
+  editingMessage,
+  onEdit,
+  onCancelEdit,
   maxLength = 500,
   placeholder = "Type a message...",
   disabled = false,
@@ -52,6 +61,7 @@ export function MessageInput({
 }: MessageInputProps) {
   const [content, setContent] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const isEditing = !!editingMessage;
 
   const characterCount = content.length;
   const isOverLimit = characterCount > maxLength;
@@ -86,18 +96,46 @@ export function MessageInput({
     }
   }, [replyingTo]);
 
-  // Handle send
+  // Populate input and focus when editing
+  useEffect(() => {
+    if (editingMessage) {
+      setContent(editingMessage.content);
+      textareaRef.current?.focus();
+      // Move cursor to end of text
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.value.length;
+          textareaRef.current.selectionEnd = textareaRef.current.value.length;
+        }
+      }, 0);
+    }
+  }, [editingMessage]);
+
+  // Handle send (for new messages or edits)
   const handleSend = useCallback(() => {
     if (!canSend) return;
 
-    onSend(content.trim(), replyingTo?.id);
+    if (isEditing && editingMessage && onEdit) {
+      // Submit edit
+      onEdit(editingMessage, content.trim());
+    } else {
+      // Send new message
+      onSend(content.trim(), replyingTo?.id);
+    }
+
     setContent("");
 
     // Reset textarea height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
-  }, [canSend, content, onSend, replyingTo?.id]);
+  }, [canSend, content, onSend, replyingTo?.id, isEditing, editingMessage, onEdit]);
+
+  // Handle cancel edit
+  const handleCancelEdit = useCallback(() => {
+    setContent("");
+    onCancelEdit?.();
+  }, [onCancelEdit]);
 
   // Handle keyboard shortcuts
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -105,6 +143,12 @@ export function MessageInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+
+    // Cancel edit on Escape
+    if (e.key === "Escape" && isEditing && onCancelEdit) {
+      handleCancelEdit();
+      return;
     }
 
     // Cancel reply on Escape
@@ -115,9 +159,45 @@ export function MessageInput({
 
   return (
     <div className={cn("border-t border-cream-dark bg-cream", className)}>
+      {/* Edit indicator */}
+      <AnimatePresence>
+        {isEditing && editingMessage && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="overflow-hidden"
+          >
+            <div className="flex items-center gap-3 border-b border-cream-dark bg-gold/10 px-4 py-2">
+              <Pencil className="h-4 w-4 text-gold-dark" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-medium text-charcoal-light">
+                  Editing message
+                </span>
+                <p className="truncate text-xs text-charcoal-light">
+                  {editingMessage.content}
+                </p>
+              </div>
+              {onCancelEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={handleCancelEdit}
+                  aria-label="Cancel edit"
+                  className="h-6 w-6 shrink-0 text-charcoal-light hover:text-charcoal"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Reply indicator */}
       <AnimatePresence>
-        {replyingTo && (
+        {replyingTo && !isEditing && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -185,7 +265,7 @@ export function MessageInput({
             )}
           />
 
-          {/* Send button */}
+          {/* Send/Save button */}
           <Button
             onClick={handleSend}
             disabled={!canSend}
@@ -193,13 +273,17 @@ export function MessageInput({
             className={cn(
               "shrink-0 transition-all h-11 w-11 active:scale-95",
               canSend
-                ? "bg-leather text-chalk hover:bg-leather-dark"
+                ? isEditing
+                  ? "bg-field text-chalk hover:bg-field/90"
+                  : "bg-leather text-chalk hover:bg-leather-dark"
                 : "bg-gray-200 text-charcoal-light"
             )}
-            aria-label="Send message"
+            aria-label={isEditing ? "Save edit" : "Send message"}
           >
             {isSending ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            ) : isEditing ? (
+              <Check className="h-4 w-4" />
             ) : (
               <Send className="h-4 w-4" />
             )}

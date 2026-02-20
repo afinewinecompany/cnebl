@@ -654,11 +654,81 @@ export async function getTeamChannelStats(teamId: string): Promise<{
 
 /**
  * Update a message (edit content)
+ * Supports both database (UUID IDs) and mock data
  */
 export async function updateMessage(
   messageId: string,
   content: string
 ): Promise<MessageResponse | null> {
+  // Check if messageId looks like a UUID (database ID) vs mock ID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      // First update the message
+      const updateResult = await query<{
+        id: string;
+        team_id: string;
+        author_id: string;
+        content: string;
+        reply_to_id: string | null;
+        is_pinned: boolean;
+        is_edited: boolean;
+        edited_at: string | null;
+        is_deleted: boolean;
+        deleted_at: string | null;
+        created_at: string;
+      }>(
+        `UPDATE messages
+         SET content = $2, is_edited = true, edited_at = NOW()
+         WHERE id = $1 AND is_deleted = false
+         RETURNING id, team_id, author_id, content, reply_to_id,
+                   is_pinned, is_edited, edited_at, is_deleted, deleted_at, created_at`,
+        [messageId, content]
+      );
+
+      if (updateResult.rows.length === 0) {
+        // Message not found in database, will fall through to mock data
+      } else {
+        const row = updateResult.rows[0];
+
+        // Fetch author info separately
+        const authorResult = await query<{ full_name: string; avatar_url: string | null }>(
+          `SELECT full_name, avatar_url FROM users WHERE id = $1`,
+          [row.author_id]
+        );
+        const author = authorResult.rows[0];
+
+        return {
+          id: row.id,
+          teamId: row.team_id,
+          channel: DEFAULT_CHANNEL,
+          authorId: row.author_id,
+          content: row.content,
+          replyToId: row.reply_to_id,
+          isPinned: row.is_pinned,
+          isEdited: row.is_edited,
+          editedAt: row.edited_at,
+          isDeleted: row.is_deleted,
+          deletedAt: row.deleted_at,
+          createdAt: row.created_at,
+          author: {
+            id: row.author_id,
+            fullName: author?.full_name ?? 'Unknown User',
+            avatarUrl: author?.avatar_url ?? null,
+          },
+          replyTo: null,
+        };
+      }
+    } catch (error) {
+      console.error('[Messages] Error updating message in database:', error);
+      // Fall through to mock data
+    }
+  }
+
+  // Fall back to mock data
   await new Promise((resolve) => setTimeout(resolve, 15));
 
   const messageIndex = mockMessages.findIndex((m) => m.id === messageId);
@@ -676,8 +746,35 @@ export async function updateMessage(
 
 /**
  * Soft delete a message
+ * Supports both database (UUID IDs) and mock data
  */
 export async function deleteMessage(messageId: string): Promise<boolean> {
+  // Check if messageId looks like a UUID (database ID) vs mock ID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      const result = await query<{ id: string }>(
+        `UPDATE messages
+         SET is_deleted = true, deleted_at = NOW()
+         WHERE id = $1 AND is_deleted = false
+         RETURNING id`,
+        [messageId]
+      );
+
+      if (result.rows.length > 0) {
+        return true;
+      }
+      // Message not found in database, will fall through to mock data
+    } catch (error) {
+      console.error('[Messages] Error deleting message from database:', error);
+      // Fall through to mock data
+    }
+  }
+
+  // Fall back to mock data
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const message = mockMessages.find((m) => m.id === messageId);
@@ -691,11 +788,75 @@ export async function deleteMessage(messageId: string): Promise<boolean> {
 
 /**
  * Toggle pin status of a message
+ * Supports both database (UUID IDs) and mock data
  */
 export async function toggleMessagePin(
   messageId: string,
   isPinned: boolean
 ): Promise<MessageResponse | null> {
+  // Check if messageId looks like a UUID (database ID) vs mock ID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      const result = await query<{
+        id: string;
+        team_id: string;
+        author_id: string;
+        content: string;
+        reply_to_id: string | null;
+        is_pinned: boolean;
+        is_edited: boolean;
+        edited_at: string | null;
+        is_deleted: boolean;
+        deleted_at: string | null;
+        created_at: string;
+        author_name: string;
+        author_avatar: string | null;
+      }>(
+        `UPDATE messages m
+         SET is_pinned = $2
+         FROM users u
+         WHERE m.id = $1 AND m.is_deleted = false AND u.id = m.author_id
+         RETURNING m.id, m.team_id, m.author_id, m.content, m.reply_to_id,
+                   m.is_pinned, m.is_edited, m.edited_at, m.is_deleted, m.deleted_at, m.created_at,
+                   u.full_name as author_name, u.avatar_url as author_avatar`,
+        [messageId, isPinned]
+      );
+
+      if (result.rows.length > 0) {
+        const row = result.rows[0];
+        return {
+          id: row.id,
+          teamId: row.team_id,
+          channel: DEFAULT_CHANNEL,
+          authorId: row.author_id,
+          content: row.content,
+          replyToId: row.reply_to_id,
+          isPinned: row.is_pinned,
+          isEdited: row.is_edited,
+          editedAt: row.edited_at,
+          isDeleted: row.is_deleted,
+          deletedAt: row.deleted_at,
+          createdAt: row.created_at,
+          author: {
+            id: row.author_id,
+            fullName: row.author_name,
+            avatarUrl: row.author_avatar,
+          },
+          replyTo: null,
+        };
+      }
+      // Message not found in database, will fall through to mock data
+    } catch (error) {
+      console.error('[Messages] Error toggling message pin in database:', error);
+      // Fall through to mock data
+    }
+  }
+
+  // Fall back to mock data
   await new Promise((resolve) => setTimeout(resolve, 10));
 
   const message = mockMessages.find((m) => m.id === messageId);
@@ -708,8 +869,32 @@ export async function toggleMessagePin(
 
 /**
  * Get the author ID of a message (for authorization checks)
+ * Supports both database (UUID IDs) and mock data
  */
 export async function getMessageAuthorId(messageId: string): Promise<string | null> {
+  // Check if messageId looks like a UUID (database ID) vs mock ID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      const result = await query<{ author_id: string }>(
+        `SELECT author_id FROM messages WHERE id = $1`,
+        [messageId]
+      );
+
+      if (result.rows.length > 0) {
+        return result.rows[0].author_id;
+      }
+      // Message not found in database, will fall through to mock data
+    } catch (error) {
+      console.error('[Messages] Error getting message author from database:', error);
+      // Fall through to mock data
+    }
+  }
+
+  // Fall back to mock data
   await new Promise((resolve) => setTimeout(resolve, 5));
 
   const message = mockMessages.find((m) => m.id === messageId);
@@ -718,8 +903,32 @@ export async function getMessageAuthorId(messageId: string): Promise<string | nu
 
 /**
  * Get the team ID of a message (for authorization checks)
+ * Supports both database (UUID IDs) and mock data
  */
 export async function getMessageTeamId(messageId: string): Promise<string | null> {
+  // Check if messageId looks like a UUID (database ID) vs mock ID
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(messageId);
+
+  if (isUUID) {
+    try {
+      const { query } = await import('../client');
+
+      const result = await query<{ team_id: string }>(
+        `SELECT team_id FROM messages WHERE id = $1`,
+        [messageId]
+      );
+
+      if (result.rows.length > 0) {
+        return result.rows[0].team_id;
+      }
+      // Message not found in database, will fall through to mock data
+    } catch (error) {
+      console.error('[Messages] Error getting message team from database:', error);
+      // Fall through to mock data
+    }
+  }
+
+  // Fall back to mock data
   await new Promise((resolve) => setTimeout(resolve, 5));
 
   const message = mockMessages.find((m) => m.id === messageId);

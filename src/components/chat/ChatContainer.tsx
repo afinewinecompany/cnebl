@@ -119,6 +119,20 @@ export function ChatContainer({
     setReplyingTo(null);
   }, []);
 
+  // Handle edit submit
+  const handleEditSubmit = useCallback(
+    (message: MessageWithAuthor, newContent: string) => {
+      onEditMessage?.(message, newContent);
+      setEditingMessage(null);
+    },
+    [onEditMessage]
+  );
+
+  // Handle cancel edit
+  const handleCancelEdit = useCallback(() => {
+    setEditingMessage(null);
+  }, []);
+
   // Handle delete click
   const handleDelete = useCallback(
     (message: MessageWithAuthor) => {
@@ -246,6 +260,9 @@ export function ChatContainer({
           onSend={handleSend}
           replyingTo={replyingTo}
           onCancelReply={() => setReplyingTo(null)}
+          editingMessage={editingMessage}
+          onEdit={handleEditSubmit}
+          onCancelEdit={handleCancelEdit}
           isSending={isSending}
           maxLength={500}
           placeholder={`Message ${teamName}...`}
