@@ -30,9 +30,10 @@ export async function validateCSRF(): Promise<boolean> {
 
   // For JSON requests, validate origin matches host
   if (isJsonRequest) {
-    // If no origin or referer, allow (could be same-origin)
+    // Require origin or referer header for all state-changing requests
+    // This prevents CSRF attacks from environments that strip these headers
     if (!origin && !referer) {
-      return true;
+      return false;
     }
 
     // Validate origin matches host

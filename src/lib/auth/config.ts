@@ -152,15 +152,15 @@ export const authConfig: NextAuthConfig = {
     },
   },
 
-  // Events for logging
+  // Events for logging (no PII logged for security)
   events: {
     async signIn({ user, isNewUser }) {
-      console.log('[Auth Event] Sign in:', user.email, isNewUser ? '(new user)' : '');
+      console.log('[Auth Event] Sign in:', user.id, isNewUser ? '(new user)' : '');
     },
     async signOut(message) {
       // Check if it's a JWT session (has token) or database session
       if ('token' in message) {
-        console.log('[Auth Event] Sign out:', message.token?.email);
+        console.log('[Auth Event] Sign out:', message.token?.id);
       } else {
         console.log('[Auth Event] Sign out: session ended');
       }

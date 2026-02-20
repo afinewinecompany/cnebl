@@ -16,6 +16,10 @@ import {
   GameCancelledTemplate,
   GameFinalTemplate,
 } from './templates/games';
+import {
+  AvailabilityRequestTemplate,
+  TeamAnnouncementTemplate,
+} from './templates/team';
 import type {
   SendEmailOptions,
   SendEmailResult,
@@ -27,6 +31,8 @@ import type {
   GameReminderEmailOptions,
   GameCancelledEmailOptions,
   GameFinalEmailOptions,
+  AvailabilityRequestEmailOptions,
+  TeamAnnouncementEmailOptions,
 } from './types';
 
 // =============================================================================
@@ -421,6 +427,91 @@ export async function sendGameFinalEmail(
 }
 
 // =============================================================================
+// CONVENIENCE FUNCTIONS FOR TEAM EMAILS
+// =============================================================================
+
+/**
+ * Send an availability request email
+ *
+ * @param options - Availability request email options
+ * @returns Result object with success status
+ */
+export async function sendAvailabilityRequestEmail(
+  options: AvailabilityRequestEmailOptions
+): Promise<SendEmailResult> {
+  const {
+    email,
+    playerName,
+    managerName,
+    teamName,
+    games,
+    availabilityUrl,
+  } = options;
+
+  const gameCount = games.length;
+  const subject = `[${teamName}] Availability needed for ${gameCount} upcoming game${gameCount !== 1 ? 's' : ''}`;
+
+  return sendEmail({
+    to: email,
+    subject,
+    react: AvailabilityRequestTemplate({
+      playerName,
+      managerName,
+      teamName,
+      games,
+      availabilityUrl,
+    }),
+    tags: [
+      { name: 'category', value: 'team' },
+      { name: 'type', value: 'availability-request' },
+      { name: 'team', value: teamName },
+    ],
+  });
+}
+
+/**
+ * Send a team announcement email
+ *
+ * @param options - Team announcement email options
+ * @returns Result object with success status
+ */
+export async function sendTeamAnnouncementEmail(
+  options: TeamAnnouncementEmailOptions
+): Promise<SendEmailResult> {
+  const {
+    email,
+    playerName,
+    teamName,
+    managerName,
+    title,
+    content,
+    postedAt,
+    viewUrl,
+  } = options;
+
+  const subject = `[${teamName}] ${title}`;
+
+  return sendEmail({
+    to: email,
+    subject,
+    react: TeamAnnouncementTemplate({
+      playerName,
+      teamName,
+      managerName,
+      title,
+      content,
+      postedAt,
+      viewUrl,
+    }),
+    tags: [
+      { name: 'category', value: 'team' },
+      { name: 'type', value: 'team-announcement' },
+      { name: 'team', value: teamName },
+    ],
+  });
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -439,4 +530,7 @@ export type {
   GameReminderEmailOptions,
   GameCancelledEmailOptions,
   GameFinalEmailOptions,
+  GameForAvailability,
+  AvailabilityRequestEmailOptions,
+  TeamAnnouncementEmailOptions,
 } from './types';

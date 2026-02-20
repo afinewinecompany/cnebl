@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { hashPassword } from '@/lib/auth';
 import {
-  checkRateLimit,
+  checkRateLimitAsync,
   getClientIP,
   rateLimitHeaders,
   RATE_LIMITS,
@@ -84,9 +84,9 @@ export async function POST(request: NextRequest) {
       return csrfErrorResponse();
     }
 
-    // Rate limiting
+    // Rate limiting (database-backed when available)
     const clientIP = getClientIP(request.headers);
-    const rateLimitResult = checkRateLimit(
+    const rateLimitResult = await checkRateLimitAsync(
       `register:${clientIP}`,
       RATE_LIMITS.register
     );

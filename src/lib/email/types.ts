@@ -14,7 +14,9 @@ export type EmailTemplate =
   | 'game-scheduled'
   | 'game-reminder'
   | 'game-cancelled'
-  | 'game-final';
+  | 'game-final'
+  | 'availability-request'
+  | 'team-announcement';
 
 /**
  * Options for sending an email
@@ -217,4 +219,64 @@ export interface GameFinalEmailOptions {
   winningTeam: string | null;
   /** URL to view the full box score */
   boxScoreUrl: string;
+}
+
+// =============================================================================
+// TEAM EMAIL OPTIONS
+// =============================================================================
+
+/**
+ * Game information for availability requests
+ */
+export interface GameForAvailability {
+  /** Name of the home team */
+  homeTeam: string;
+  /** Name of the away team */
+  awayTeam: string;
+  /** Date of the game (formatted string) */
+  gameDate: string;
+  /** Time of the game (formatted string) */
+  gameTime: string;
+  /** Name of the location/field */
+  location: string;
+}
+
+/**
+ * Options for availability request email
+ */
+export interface AvailabilityRequestEmailOptions {
+  /** Recipient email address */
+  email: string;
+  /** Player's display name */
+  playerName: string;
+  /** Manager's display name */
+  managerName: string;
+  /** Name of the team */
+  teamName: string;
+  /** Array of upcoming games to request availability for */
+  games: GameForAvailability[];
+  /** URL to update availability */
+  availabilityUrl: string;
+}
+
+/**
+ * Options for team announcement email
+ */
+export interface TeamAnnouncementEmailOptions {
+  /** Recipient email address */
+  email: string;
+  /** Player's display name */
+  playerName: string;
+  /** Name of the team */
+  teamName: string;
+  /** Manager's display name */
+  managerName: string;
+  /** Announcement title/headline */
+  title: string;
+  /** Announcement body content (HTML safe) */
+  content: string;
+  /** Date the announcement was posted */
+  postedAt: string;
+  /** URL to view the announcement in the app */
+  viewUrl: string;
 }

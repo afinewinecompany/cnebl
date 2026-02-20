@@ -29,3 +29,10 @@ export {
   GameFinalTemplate,
 } from './games';
 export type { PlayerRsvpStatus } from './games';
+
+// Team templates
+export {
+  AvailabilityRequestTemplate,
+  TeamAnnouncementTemplate,
+} from './team';
+export type { GameForAvailability } from './team';

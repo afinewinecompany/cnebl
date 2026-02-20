@@ -1,6 +1,6 @@
 /**
  * Database Types for CNEBL
- * These types match the PostgreSQL schema defined in supabase/migrations/001_initial_schema.sql
+ * These types match the PostgreSQL schema defined in db/migrations/001_initial_schema.sql
  */
 
 // =============================================================================

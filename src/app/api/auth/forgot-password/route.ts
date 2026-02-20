@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
-  checkRateLimit,
+  checkRateLimitAsync,
   getClientIP,
   rateLimitHeaders,
   RATE_LIMITS,
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
       return csrfErrorResponse();
     }
 
-    // Rate limiting - stricter for password reset
+    // Rate limiting - stricter for password reset (database-backed when available)
     const clientIP = getClientIP(request.headers);
-    const rateLimitResult = checkRateLimit(
+    const rateLimitResult = await checkRateLimitAsync(
       `forgot-password:${clientIP}`,
       RATE_LIMITS.passwordReset
     );

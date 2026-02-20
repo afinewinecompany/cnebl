@@ -4,12 +4,21 @@
  * Currently uses mock data, will be replaced with PostgreSQL queries
  */
 
-import { randomBytes } from 'crypto';
 import type { UserRole } from '@/types/database.types';
 import {
   sendVerificationEmail as sendVerificationEmailService,
   sendPasswordResetEmail as sendPasswordResetEmailService,
 } from '@/lib/email';
+import {
+  generateToken,
+  createPasswordResetToken as createPasswordResetTokenDB,
+  validatePasswordResetToken as validatePasswordResetTokenDB,
+  invalidatePasswordResetToken as invalidatePasswordResetTokenDB,
+  createEmailVerificationToken as createEmailVerificationTokenDB,
+  validateEmailVerificationToken as validateEmailVerificationTokenDB,
+  invalidateEmailVerificationToken as invalidateEmailVerificationTokenDB,
+} from './tokens';
+import { getDatabaseStatus } from '../client';
 
 // =============================================================================
 // MOCK USER TYPE
@@ -186,38 +195,37 @@ export async function updateUserPassword(
 // =============================================================================
 
 /**
- * Generate a cryptographically secure random token
- * Uses crypto.randomBytes for secure entropy (256-bit)
- */
-function generateToken(): string {
-  return randomBytes(32).toString('hex');
-}
-
-/**
  * Create a password reset token for a user
+ * Uses database storage when available, falls back to in-memory for testing
  * @param email - The user's email address
  * @returns The reset token if user exists, null otherwise
  */
 export async function createPasswordResetToken(email: string): Promise<string | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
-
   const user = await findUserByEmail(email);
   if (!user) return null;
 
-  // Invalidate any existing tokens for this user
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      return await createPasswordResetTokenDB(user.id, user.email);
+    } catch (error) {
+      console.error('[Users] Database token creation failed, using in-memory:', error);
+    }
+  }
+
+  // Fallback to in-memory for development/testing
   passwordResetTokens.forEach((t) => {
     if (t.userId === user.id) {
       t.used = true;
     }
   });
 
-  // Create new token (valid for 1 hour)
   const token = generateToken();
   const resetToken: PasswordResetToken = {
     token,
     userId: user.id,
     email: user.email,
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     used: false,
   };
 
@@ -227,6 +235,7 @@ export async function createPasswordResetToken(email: string): Promise<string | 
 
 /**
  * Validate a password reset token
+ * Uses database storage when available, falls back to in-memory for testing
  * @param token - The token to validate
  * @returns The user ID if valid, null otherwise
  */
@@ -234,19 +243,19 @@ export async function validatePasswordResetToken(token: string): Promise<{
   userId: string;
   email: string;
 } | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      return await validatePasswordResetTokenDB(token);
+    } catch (error) {
+      console.error('[Users] Database token validation failed, using in-memory:', error);
+    }
+  }
 
+  // Fallback to in-memory
   const resetToken = passwordResetTokens.find((t) => t.token === token);
 
-  if (!resetToken) {
-    return null;
-  }
-
-  if (resetToken.used) {
-    return null;
-  }
-
-  if (resetToken.expiresAt < new Date()) {
+  if (!resetToken || resetToken.used || resetToken.expiresAt < new Date()) {
     return null;
   }
 
@@ -261,8 +270,17 @@ export async function validatePasswordResetToken(token: string): Promise<{
  * @param token - The token to invalidate
  */
 export async function invalidatePasswordResetToken(token: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      await invalidatePasswordResetTokenDB(token);
+      return;
+    } catch (error) {
+      console.error('[Users] Database token invalidation failed, using in-memory:', error);
+    }
+  }
 
+  // Fallback to in-memory
   const resetToken = passwordResetTokens.find((t) => t.token === token);
   if (resetToken) {
     resetToken.used = true;
@@ -299,6 +317,7 @@ setInterval(() => {
 
 /**
  * Create an email verification token for a user
+ * Uses database storage when available, falls back to in-memory for testing
  * @param email - The user's email address
  * @param userId - The user's ID
  * @returns The verification token
@@ -307,22 +326,28 @@ export async function createEmailVerificationToken(
   email: string,
   userId: string
 ): Promise<string> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      return await createEmailVerificationTokenDB(userId, email);
+    } catch (error) {
+      console.error('[Users] Database token creation failed, using in-memory:', error);
+    }
+  }
 
-  // Invalidate any existing tokens for this user
+  // Fallback to in-memory for development/testing
   emailVerificationTokens.forEach((t) => {
     if (t.userId === userId) {
       t.used = true;
     }
   });
 
-  // Create new token (valid for 24 hours)
   const token = generateToken();
   const verificationToken: EmailVerificationToken = {
     token,
     userId,
     email,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
     used: false,
   };
 
@@ -332,6 +357,7 @@ export async function createEmailVerificationToken(
 
 /**
  * Validate an email verification token
+ * Uses database storage when available, falls back to in-memory for testing
  * @param token - The token to validate
  * @returns The user info if valid, null otherwise
  */
@@ -339,19 +365,19 @@ export async function validateEmailVerificationToken(token: string): Promise<{
   userId: string;
   email: string;
 } | null> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      return await validateEmailVerificationTokenDB(token);
+    } catch (error) {
+      console.error('[Users] Database token validation failed, using in-memory:', error);
+    }
+  }
 
+  // Fallback to in-memory
   const verificationToken = emailVerificationTokens.find((t) => t.token === token);
 
-  if (!verificationToken) {
-    return null;
-  }
-
-  if (verificationToken.used) {
-    return null;
-  }
-
-  if (verificationToken.expiresAt < new Date()) {
+  if (!verificationToken || verificationToken.used || verificationToken.expiresAt < new Date()) {
     return null;
   }
 
@@ -366,8 +392,17 @@ export async function validateEmailVerificationToken(token: string): Promise<{
  * @param token - The token to invalidate
  */
 export async function invalidateEmailVerificationToken(token: string): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 10));
+  // Use database if connected
+  if (getDatabaseStatus() === 'connected') {
+    try {
+      await invalidateEmailVerificationTokenDB(token);
+      return;
+    } catch (error) {
+      console.error('[Users] Database token invalidation failed, using in-memory:', error);
+    }
+  }
 
+  // Fallback to in-memory
   const verificationToken = emailVerificationTokens.find((t) => t.token === token);
   if (verificationToken) {
     verificationToken.used = true;

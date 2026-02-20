@@ -25,9 +25,14 @@ export function getDatabaseStatus(): DatabaseStatus {
 // =============================================================================
 
 // Connection pool configuration
+// Railway always requires SSL; use strict validation in production
 const poolConfig = {
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : false,
+  ssl: process.env.DATABASE_URL
+    ? {
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+      }
+    : false,
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
