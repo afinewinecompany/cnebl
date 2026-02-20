@@ -45,10 +45,11 @@ export const authConfig: NextAuthConfig = {
   providers,
 
   // Use JWT strategy for sessions
+  // IMPORTANT: These values MUST match edge-config.ts for middleware compatibility
   session: {
     strategy: 'jwt',
-    maxAge: 24 * 60 * 60, // 24 hours - secure session duration
-    updateAge: 4 * 60 * 60, // Update session every 4 hours
+    maxAge: 7 * 24 * 60 * 60, // 7 days - matches edge-config
+    updateAge: 24 * 60 * 60, // Update session every 24 hours - matches edge-config
   },
 
   // Custom pages
@@ -170,8 +171,9 @@ export const authConfig: NextAuthConfig = {
   // Enable debug mode in development
   debug: process.env.NODE_ENV === 'development',
 
-  // Only trust host header in development (prevents host header injection in production)
-  trustHost: process.env.NODE_ENV === 'development',
+  // Trust the host header - must match edge-config.ts
+  // In production, set AUTH_URL environment variable for proper host validation
+  trustHost: true,
 };
 
 /**
