@@ -18,7 +18,10 @@ import {
 } from 'lucide-react';
 import { getRoleDisplayName } from '@/types/auth';
 import { DashboardAnnouncements } from './DashboardAnnouncements';
+import { DashboardChat } from './DashboardChat';
+import { TeamDirectory } from './TeamDirectory';
 import { getPublishedAnnouncements } from '@/lib/db/queries/announcements';
+import { getAllTeamsWithRosters, isTeamManagerOrAdmin } from '@/lib/db/queries';
 
 export const metadata: Metadata = {
   title: 'Dashboard - CNEBL',
@@ -41,8 +44,12 @@ export default async function DashboardPage() {
   const isManagerOrAbove = ['manager', 'admin', 'commissioner'].includes(user.role);
   const isAdminOrAbove = ['admin', 'commissioner'].includes(user.role);
 
-  // Fetch latest announcements
-  const { announcements } = await getPublishedAnnouncements({});
+  // Fetch data in parallel
+  const [{ announcements }, teams, isTeamManager] = await Promise.all([
+    getPublishedAnnouncements({}),
+    getAllTeamsWithRosters(),
+    user.teamId ? isTeamManagerOrAdmin(user.id, user.teamId) : Promise.resolve(false),
+  ]);
 
   // Quick action cards based on role
   const quickActions = [
@@ -175,7 +182,7 @@ export default async function DashboardPage() {
       </section>
 
       {/* Announcements and upcoming games */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
         <DashboardAnnouncements initialAnnouncements={announcements.slice(0, 5)} />
 
         <Card>
@@ -221,6 +228,34 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+      </section>
+
+      {/* Team Chat Section */}
+      {user.teamId && (
+        <section className="mb-12">
+          <h2 className="font-headline text-xl font-semibold text-navy uppercase tracking-wide mb-4">
+            Team Chat
+          </h2>
+          <DashboardChat
+            teamId={user.teamId}
+            teamName={user.teamName || 'My Team'}
+            teamColor={teams.find(t => t.id === user.teamId)?.primaryColor}
+            currentUserId={user.id}
+            currentUserRole={user.role}
+            isTeamManager={isTeamManager}
+          />
+        </section>
+      )}
+
+      {/* Team Directory Section */}
+      <section>
+        <h2 className="font-headline text-xl font-semibold text-navy uppercase tracking-wide mb-4">
+          League Directory
+        </h2>
+        <TeamDirectory
+          teams={teams}
+          currentUserTeamId={user.teamId}
+        />
       </section>
     </div>
   );

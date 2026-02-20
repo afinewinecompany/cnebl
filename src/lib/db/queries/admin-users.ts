@@ -568,3 +568,70 @@ export async function isJerseyNumberAvailable(
 
   return !taken;
 }
+
+/**
+ * Player contact info for team directory
+ */
+export interface PlayerContactInfo {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  avatarUrl: string | null;
+  jerseyNumber: string | null;
+  primaryPosition: FieldPosition | null;
+  isCaptain: boolean;
+}
+
+/**
+ * Team with player roster for directory
+ */
+export interface TeamWithRoster {
+  id: string;
+  name: string;
+  abbreviation: string;
+  primaryColor: string;
+  secondaryColor: string;
+  players: PlayerContactInfo[];
+}
+
+/**
+ * Get all teams with their player rosters for the team directory
+ */
+export async function getAllTeamsWithRosters(): Promise<TeamWithRoster[]> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  return mockTeams.map((team) => {
+    // Get all active players for this team
+    const teamPlayers = mockPlayers
+      .filter((p) => p.teamId === team.id && p.isActive)
+      .map((player) => {
+        const user = mockUsers.find((u) => u.id === player.userId);
+        return {
+          id: player.id,
+          fullName: user?.fullName ?? 'Unknown',
+          email: user?.email ?? '',
+          phone: user?.phone ?? null,
+          avatarUrl: user?.avatarUrl ?? null,
+          jerseyNumber: player.jerseyNumber,
+          primaryPosition: player.primaryPosition,
+          isCaptain: player.isCaptain,
+        };
+      })
+      // Sort by captain first, then by name
+      .sort((a, b) => {
+        if (a.isCaptain && !b.isCaptain) return -1;
+        if (!a.isCaptain && b.isCaptain) return 1;
+        return a.fullName.localeCompare(b.fullName);
+      });
+
+    return {
+      id: team.id,
+      name: team.name,
+      abbreviation: team.abbreviation,
+      primaryColor: team.primaryColor,
+      secondaryColor: team.secondaryColor,
+      players: teamPlayers,
+    };
+  });
+}

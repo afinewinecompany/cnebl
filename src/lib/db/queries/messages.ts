@@ -7,6 +7,7 @@
 import type { Message, ChannelType } from '@/types';
 import type { MessageResponse, MessagesListResponse } from '@/lib/api/schemas/messages';
 import { DEFAULT_CHANNEL } from '@/lib/constants/channels';
+import { getUserWithAssignment } from './admin-users';
 
 // =============================================================================
 // MOCK DATA
@@ -374,6 +375,11 @@ export async function createMessage(data: {
 }): Promise<MessageResponse> {
   await new Promise((resolve) => setTimeout(resolve, 20));
 
+  // Fetch the user's actual name from the database
+  const user = await getUserWithAssignment(data.authorId);
+  const authorName = user?.fullName ?? 'Unknown User';
+  const authorAvatar = user?.avatarUrl ?? null;
+
   const newMessage = {
     id: `msg-${Date.now()}`,
     teamId: data.teamId,
@@ -389,8 +395,8 @@ export async function createMessage(data: {
     createdAt: new Date().toISOString(),
     author: {
       id: data.authorId,
-      fullName: 'Current User', // In production, fetch from database
-      avatarUrl: null,
+      fullName: authorName,
+      avatarUrl: authorAvatar,
     },
   };
 
