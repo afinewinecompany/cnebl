@@ -5,6 +5,10 @@
  */
 
 import type { UserRole } from '@/types/database.types';
+import {
+  sendVerificationEmail as sendVerificationEmailService,
+  sendPasswordResetEmail as sendPasswordResetEmailService,
+} from '@/lib/email';
 
 // =============================================================================
 // MOCK USER TYPE
@@ -272,49 +276,181 @@ export async function invalidatePasswordResetToken(token: string): Promise<void>
 }
 
 // =============================================================================
-// EMAIL VERIFICATION (MOCK)
+// EMAIL VERIFICATION TOKENS
+// =============================================================================
+
+interface EmailVerificationToken {
+  token: string;
+  userId: string;
+  email: string;
+  expiresAt: Date;
+  used: boolean;
+}
+
+/**
+ * In-memory store for email verification tokens
+ * In production, this would be stored in the database
+ */
+const emailVerificationTokens: EmailVerificationToken[] = [];
+
+// Clean up expired verification tokens periodically (every 5 minutes)
+setInterval(() => {
+  const now = new Date();
+  const validTokens = emailVerificationTokens.filter(
+    (token) => token.expiresAt > now && !token.used
+  );
+  emailVerificationTokens.length = 0;
+  emailVerificationTokens.push(...validTokens);
+}, 5 * 60 * 1000);
+
+/**
+ * Create an email verification token for a user
+ * @param email - The user's email address
+ * @param userId - The user's ID
+ * @returns The verification token
+ */
+export async function createEmailVerificationToken(
+  email: string,
+  userId: string
+): Promise<string> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  // Invalidate any existing tokens for this user
+  emailVerificationTokens.forEach((t) => {
+    if (t.userId === userId) {
+      t.used = true;
+    }
+  });
+
+  // Create new token (valid for 24 hours)
+  const token = generateToken();
+  const verificationToken: EmailVerificationToken = {
+    token,
+    userId,
+    email,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    used: false,
+  };
+
+  emailVerificationTokens.push(verificationToken);
+  return token;
+}
+
+/**
+ * Validate an email verification token
+ * @param token - The token to validate
+ * @returns The user info if valid, null otherwise
+ */
+export async function validateEmailVerificationToken(token: string): Promise<{
+  userId: string;
+  email: string;
+} | null> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const verificationToken = emailVerificationTokens.find((t) => t.token === token);
+
+  if (!verificationToken) {
+    return null;
+  }
+
+  if (verificationToken.used) {
+    return null;
+  }
+
+  if (verificationToken.expiresAt < new Date()) {
+    return null;
+  }
+
+  return {
+    userId: verificationToken.userId,
+    email: verificationToken.email,
+  };
+}
+
+/**
+ * Mark an email verification token as used
+ * @param token - The token to invalidate
+ */
+export async function invalidateEmailVerificationToken(token: string): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  const verificationToken = emailVerificationTokens.find((t) => t.token === token);
+  if (verificationToken) {
+    verificationToken.used = true;
+  }
+}
+
+/**
+ * Mark a user's email as verified
+ * @param userId - The user ID
+ * @returns True if successful, false otherwise
+ */
+export async function verifyUserEmail(userId: string): Promise<boolean> {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const userIndex = mockUsers.findIndex((user) => user.id === userId);
+  if (userIndex === -1) return false;
+
+  mockUsers[userIndex].emailVerified = true;
+  mockUsers[userIndex].emailVerifiedAt = new Date().toISOString();
+  mockUsers[userIndex].updatedAt = new Date().toISOString();
+  return true;
+}
+
+// =============================================================================
+// EMAIL SENDING FUNCTIONS
 // =============================================================================
 
 /**
- * Send a verification email (mock implementation)
- * In production, this would integrate with an email service
+ * Send a verification email to a user
+ * Uses the Resend email service (falls back to console.log if not configured)
  *
  * @param email - The recipient email address
  * @param userId - The user ID for generating verification link
  */
 export async function sendVerificationEmail(email: string, userId: string): Promise<void> {
-  // Generate a mock verification token
-  const verificationToken = generateToken();
-  const verificationUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+  // Get the user's name for personalization
+  const user = await findUserById(userId);
+  const userName = user?.fullName || 'there';
 
-  // In production, this would send an actual email
-  // For now, log to console for testing
-  console.log('\n========================================');
-  console.log('VERIFICATION EMAIL (Mock)');
-  console.log('========================================');
-  console.log(`To: ${email}`);
-  console.log(`User ID: ${userId}`);
-  console.log(`Verification URL: ${verificationUrl}`);
-  console.log('========================================\n');
+  // Generate a verification token
+  const verificationToken = await createEmailVerificationToken(email, userId);
+  const verifyUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+
+  // Send the email using the email service
+  const result = await sendVerificationEmailService({
+    email,
+    userName,
+    verifyUrl,
+  });
+
+  if (!result.success) {
+    console.error(`[Users] Failed to send verification email: ${result.error}`);
+  }
 }
 
 /**
- * Send a password reset email (mock implementation)
- * In production, this would integrate with an email service
+ * Send a password reset email to a user
+ * Uses the Resend email service (falls back to console.log if not configured)
  *
  * @param email - The recipient email address
  * @param resetToken - The password reset token
  */
 export async function sendPasswordResetEmail(email: string, resetToken: string): Promise<void> {
+  // Get the user's name for personalization
+  const user = await findUserByEmail(email);
+  const userName = user?.fullName || 'there';
+
   const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
 
-  // In production, this would send an actual email
-  // For now, log to console for testing
-  console.log('\n========================================');
-  console.log('PASSWORD RESET EMAIL (Mock)');
-  console.log('========================================');
-  console.log(`To: ${email}`);
-  console.log(`Reset URL: ${resetUrl}`);
-  console.log(`Token expires: ${new Date(Date.now() + 60 * 60 * 1000).toISOString()}`);
-  console.log('========================================\n');
+  // Send the email using the email service
+  const result = await sendPasswordResetEmailService({
+    email,
+    userName,
+    resetUrl,
+  });
+
+  if (!result.success) {
+    console.error(`[Users] Failed to send password reset email: ${result.error}`);
+  }
 }
