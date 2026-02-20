@@ -13,6 +13,7 @@ import {
   unauthorizedResponse,
   internalErrorResponse,
 } from '@/lib/api';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import { validateGameId } from '@/lib/api/validation';
 import {
   validateStartGame,
@@ -53,6 +54,11 @@ interface RouteParams {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     // Authenticate user
     const session = await auth();
     if (!session?.user) {

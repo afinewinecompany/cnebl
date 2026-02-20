@@ -12,6 +12,7 @@ import {
   rateLimitHeaders,
   RATE_LIMITS,
 } from '@/lib/api/rate-limit';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import { sanitizeName, sanitizeEmail } from '@/lib/api/sanitize';
 import {
   findUserByEmail,
@@ -78,6 +79,11 @@ const registerSchema = z
  */
 export async function POST(request: NextRequest) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     // Rate limiting
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = checkRateLimit(

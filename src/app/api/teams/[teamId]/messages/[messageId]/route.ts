@@ -16,6 +16,7 @@ import {
   validationErrorResponse,
   internalErrorResponse,
 } from '@/lib/api';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import { validateTeamId } from '@/lib/api/validation';
 import {
   getMessageById,
@@ -102,6 +103,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     const session = await auth();
     if (!session?.user) {
       return unauthorizedResponse('You must be logged in to edit messages');
@@ -188,6 +194,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     const session = await auth();
     if (!session?.user) {
       return unauthorizedResponse('You must be logged in to delete messages');
@@ -222,12 +233,15 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return notFoundResponse('Message', messageId);
     }
 
-    // Check if user is the author OR a manager/admin
+    // Check if user is the author OR a manager of THIS team OR an admin
     const authorId = await getMessageAuthorId(messageId);
     const isAuthor = authorId === session.user.id;
-    const isManagerOrAbove = ['manager', 'admin', 'commissioner'].includes(session.user.role);
+    // Manager can only delete in their own team's chat
+    const isTeamManager = session.user.teamId === teamId && session.user.role === 'manager';
+    // Admins and commissioners can delete anywhere
+    const isAdmin = ['admin', 'commissioner'].includes(session.user.role);
 
-    if (!isAuthor && !isManagerOrAbove) {
+    if (!isAuthor && !isTeamManager && !isAdmin) {
       return forbiddenResponse('You can only delete your own messages');
     }
 

@@ -11,6 +11,7 @@ import {
   rateLimitHeaders,
   RATE_LIMITS,
 } from '@/lib/api/rate-limit';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import { sanitizeEmail } from '@/lib/api/sanitize';
 import {
   findUserByEmail,
@@ -44,6 +45,11 @@ const forgotPasswordSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     // Rate limiting - stricter for password reset
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = checkRateLimit(
@@ -135,11 +141,11 @@ export async function POST(request: NextRequest) {
       if (resetToken) {
         // Send the password reset email (mock implementation logs to console)
         await sendPasswordResetEmail(sanitizedEmail, resetToken);
-        console.log(`[API] Password reset requested for: ${sanitizedEmail}`);
+        console.log('[API] Password reset email sent');
       }
     } else {
       // Log the attempt but don't reveal that the user doesn't exist
-      console.log(`[API] Password reset attempted for non-existent email: ${sanitizedEmail}`);
+      console.log('[API] Password reset attempted for unknown email');
     }
 
     // Always return success to prevent email enumeration

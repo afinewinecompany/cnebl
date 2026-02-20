@@ -12,6 +12,7 @@ import {
   rateLimitHeaders,
   RATE_LIMITS,
 } from '@/lib/api/rate-limit';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import {
   validatePasswordResetToken,
   invalidatePasswordResetToken,
@@ -19,18 +20,23 @@ import {
 } from '@/lib/db/queries/users';
 
 /**
- * Password requirements schema
- * - At least 8 characters (matching frontend requirements)
+ * Password requirements schema (matches registration requirements)
+ * - At least 10 characters
  * - One uppercase letter
  * - One lowercase letter
  * - One number
+ * - One special character
  */
 const passwordSchema = z
   .string()
-  .min(8, 'Password must be at least 8 characters')
+  .min(10, 'Password must be at least 10 characters')
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
-  .regex(/[0-9]/, 'Password must contain at least one number');
+  .regex(/[0-9]/, 'Password must contain at least one number')
+  .regex(
+    /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/,
+    'Password must contain at least one special character'
+  );
 
 /**
  * Reset password request schema
@@ -66,6 +72,11 @@ const resetPasswordSchema = z
  */
 export async function POST(request: NextRequest) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     // Rate limiting
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = checkRateLimit(
@@ -171,7 +182,7 @@ export async function POST(request: NextRequest) {
     // Invalidate the reset token so it can't be reused
     await invalidatePasswordResetToken(token);
 
-    console.log(`[API] Password reset successful for user: ${tokenData.userId} (${tokenData.email})`);
+    console.log('[API] Password reset successful');
 
     return NextResponse.json(
       {

@@ -15,6 +15,7 @@ import {
   validationErrorResponse,
   internalErrorResponse,
 } from '@/lib/api';
+import { validateCSRF, csrfErrorResponse } from '@/lib/api/csrf';
 import { validateTeamId } from '@/lib/api/validation';
 import {
   parseListMessagesQuery,
@@ -199,6 +200,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
+    // CSRF validation
+    if (!await validateCSRF()) {
+      return csrfErrorResponse();
+    }
+
     // Check authentication
     const session = await auth();
     if (!session?.user) {

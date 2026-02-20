@@ -4,6 +4,7 @@
  * Currently uses mock data, will be replaced with PostgreSQL queries
  */
 
+import { randomBytes } from 'crypto';
 import type { UserRole } from '@/types/database.types';
 import {
   sendVerificationEmail as sendVerificationEmailService,
@@ -39,7 +40,6 @@ const mockUsers: MockUser[] = [
   {
     id: 'user-admin-001',
     email: 'admin@cnebl.com',
-    // Password: Admin123!@#
     passwordHash: '$2a$12$LQv3c1yqBwQXRbPrQIx7qOZHHlBfPJHgXmjwJB8KFvYL7z0vQXHJa',
     fullName: 'League Admin',
     role: 'admin',
@@ -52,7 +52,6 @@ const mockUsers: MockUser[] = [
   {
     id: 'user-commissioner-001',
     email: 'commissioner@cnebl.com',
-    // Password: Commish123!@#
     passwordHash: '$2a$12$LQv3c1yqBwQXRbPrQIx7qOZHHlBfPJHgXmjwJB8KFvYL7z0vQXHJa',
     fullName: 'League Commissioner',
     role: 'commissioner',
@@ -65,7 +64,6 @@ const mockUsers: MockUser[] = [
   {
     id: 'user-manager-001',
     email: 'manager@cnebl.com',
-    // Password: Manager123!@#
     passwordHash: '$2a$12$LQv3c1yqBwQXRbPrQIx7qOZHHlBfPJHgXmjwJB8KFvYL7z0vQXHJa',
     fullName: 'Team Manager',
     role: 'manager',
@@ -188,15 +186,11 @@ export async function updateUserPassword(
 // =============================================================================
 
 /**
- * Generate a secure random token
+ * Generate a cryptographically secure random token
+ * Uses crypto.randomBytes for secure entropy (256-bit)
  */
 function generateToken(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let token = '';
-  for (let i = 0; i < 64; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
+  return randomBytes(32).toString('hex');
 }
 
 /**

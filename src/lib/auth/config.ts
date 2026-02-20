@@ -47,8 +47,8 @@ export const authConfig: NextAuthConfig = {
   // Use JWT strategy for sessions
   session: {
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60, // 7 days (reduced from 30 for better security)
-    updateAge: 24 * 60 * 60, // Update session every 24 hours
+    maxAge: 24 * 60 * 60, // 24 hours - secure session duration
+    updateAge: 4 * 60 * 60, // Update session every 4 hours
   },
 
   // Custom pages
@@ -170,8 +170,8 @@ export const authConfig: NextAuthConfig = {
   // Enable debug mode in development
   debug: process.env.NODE_ENV === 'development',
 
-  // Trust the host header
-  trustHost: true,
+  // Only trust host header in development (prevents host header injection in production)
+  trustHost: process.env.NODE_ENV === 'development',
 };
 
 /**
