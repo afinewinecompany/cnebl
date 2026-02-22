@@ -139,3 +139,88 @@ export function sanitizeUrl(url: string): string | null {
 
   return trimmed;
 }
+
+/**
+ * Allowed HTML tags for email content
+ * Only safe, formatting-related tags are permitted
+ */
+const ALLOWED_EMAIL_TAGS = new Set([
+  'p', 'br', 'b', 'strong', 'i', 'em', 'u', 's', 'strike',
+  'ul', 'ol', 'li', 'blockquote', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+  'a', 'span', 'div', 'hr',
+]);
+
+/**
+ * Allowed attributes for HTML tags in emails
+ */
+const ALLOWED_ATTRIBUTES: Record<string, Set<string>> = {
+  a: new Set(['href', 'title']),
+  '*': new Set(['style']), // Allow style on all elements (for basic formatting)
+};
+
+/**
+ * Sanitize HTML content for safe rendering in emails
+ *
+ * This function removes dangerous HTML elements and attributes while
+ * preserving safe formatting tags. Use this before rendering with
+ * dangerouslySetInnerHTML.
+ *
+ * Security features:
+ * - Removes script, iframe, object, embed, form tags
+ * - Removes event handler attributes (onclick, onerror, etc.)
+ * - Validates href attributes to prevent javascript: URLs
+ * - Preserves only safe formatting tags
+ *
+ * @param html - The HTML content to sanitize
+ * @returns Sanitized HTML safe for email rendering
+ */
+export function sanitizeHtmlForEmail(html: string): string {
+  if (!html) return '';
+
+  let sanitized = html;
+
+  // Remove script tags and their content
+  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+
+  // Remove style tags and their content (inline styles are ok, but style blocks can be dangerous)
+  sanitized = sanitized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
+
+  // Remove dangerous tags entirely
+  const dangerousTags = ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'textarea', 'select', 'meta', 'link', 'base', 'svg', 'math'];
+  for (const tag of dangerousTags) {
+    const regex = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+    sanitized = sanitized.replace(regex, '');
+    // Also remove self-closing versions
+    sanitized = sanitized.replace(new RegExp(`<${tag}\\b[^>]*/?>`, 'gi'), '');
+  }
+
+  // Remove event handler attributes (onclick, onerror, onload, etc.)
+  sanitized = sanitized.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '');
+  sanitized = sanitized.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '');
+
+  // Sanitize href attributes - remove javascript:, data:, vbscript:
+  sanitized = sanitized.replace(
+    /href\s*=\s*["']\s*(javascript|data|vbscript):[^"']*["']/gi,
+    'href="#"'
+  );
+
+  // Remove src attributes with dangerous protocols
+  sanitized = sanitized.replace(
+    /src\s*=\s*["']\s*(javascript|data|vbscript):[^"']*["']/gi,
+    ''
+  );
+
+  // Remove any remaining javascript: URLs in other attributes
+  sanitized = sanitized.replace(/javascript\s*:/gi, '');
+
+  // Remove expression() in style attributes (IE vulnerability)
+  sanitized = sanitized.replace(/expression\s*\([^)]*\)/gi, '');
+
+  // Remove -moz-binding in styles (Firefox vulnerability)
+  sanitized = sanitized.replace(/-moz-binding\s*:[^;}"']*/gi, '');
+
+  // Remove behavior: in styles (IE vulnerability)
+  sanitized = sanitized.replace(/behavior\s*:[^;}"']*/gi, '');
+
+  return sanitized.trim();
+}

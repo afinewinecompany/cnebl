@@ -152,6 +152,9 @@ export const edgeAuthConfig: NextAuthConfig = {
     },
   },
 
-  // Trust the host header
-  trustHost: true,
+  // Trust host configuration for proxy environments
+  // Security: Only trust host header when AUTH_URL is properly configured
+  // - In development: Always trust (for localhost flexibility)
+  // - In production: Only trust when AUTH_URL is set (validates against it)
+  trustHost: process.env.NODE_ENV !== 'production' || !!process.env.AUTH_URL,
 };

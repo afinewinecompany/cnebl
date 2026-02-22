@@ -192,9 +192,12 @@ export const authConfig: NextAuthConfig = {
   // Enable debug mode in development
   debug: process.env.NODE_ENV === 'development',
 
-  // Trust the host header - must match edge-config.ts
-  // In production, set AUTH_URL environment variable for proper host validation
-  trustHost: true,
+  // Trust host configuration for proxy environments
+  // Security: Only trust host header when AUTH_URL is properly configured
+  // - In development: Always trust (for localhost flexibility)
+  // - In production: Only trust when AUTH_URL is set (validates against it)
+  // This prevents host header injection attacks in misconfigured deployments
+  trustHost: process.env.NODE_ENV !== 'production' || !!process.env.AUTH_URL,
 };
 
 /**

@@ -106,18 +106,21 @@ export const credentialsProvider = Credentials({
       // Find user in database
       const user = await findUserByEmail(email);
       if (!user) {
-        console.log('[Auth] User not found:', email);
+        // Security: Don't log email addresses to prevent PII exposure in logs
+        console.log('[Auth] Login failed: user not found');
         return null;
       }
 
       // Verify password
       const isValidPassword = await verifyPassword(password, user.password);
       if (!isValidPassword) {
-        console.log('[Auth] Invalid password for:', email);
+        // Security: Don't log email addresses to prevent PII exposure in logs
+        console.log('[Auth] Login failed: invalid credentials');
         return null;
       }
 
-      console.log('[Auth] Login successful:', email);
+      // Security: Log user ID instead of email for successful logins
+      console.log('[Auth] Login successful for user:', user.id);
 
       // Return user without password
       return {
@@ -130,7 +133,8 @@ export const credentialsProvider = Credentials({
         image: user.profileImage,
       };
     } catch (error) {
-      console.error('[Auth] Authorization error:', error);
+      // Security: Don't include error details that might contain PII
+      console.error('[Auth] Authorization error occurred');
       return null;
     }
   },

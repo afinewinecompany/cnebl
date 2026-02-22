@@ -3,6 +3,11 @@
  *
  * Redis-backed rate limiter for API routes.
  * Falls back to in-memory if Redis is unavailable.
+ *
+ * Security considerations:
+ * - In-memory fallback does not persist across server restarts
+ * - In-memory fallback does not work across multiple server instances
+ * - For production, ensure Redis is properly configured
  */
 
 import { getRedisClient, isRedisAvailable } from '@/lib/redis/client';
@@ -15,6 +20,9 @@ interface RateLimitEntry {
 // In-memory store as fallback when Redis is unavailable
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
+// Track if we've warned about in-memory fallback (to avoid log spam)
+let hasWarnedAboutFallback = false;
+
 // Clean up expired in-memory entries periodically
 setInterval(() => {
   const now = Date.now();
@@ -24,6 +32,20 @@ setInterval(() => {
     }
   }
 }, 60000); // Clean up every minute
+
+/**
+ * Log a warning when falling back to in-memory rate limiting in production
+ */
+function warnAboutInMemoryFallback(): void {
+  if (process.env.NODE_ENV === 'production' && !hasWarnedAboutFallback) {
+    hasWarnedAboutFallback = true;
+    console.warn(
+      '[Rate Limit] WARNING: Using in-memory rate limiting fallback in production. ' +
+      'This does not persist across restarts or scale across instances. ' +
+      'Configure Redis (REDIS_URL) for proper rate limiting.'
+    );
+  }
+}
 
 export interface RateLimitConfig {
   /** Maximum number of requests allowed in the window */
@@ -45,11 +67,16 @@ export interface RateLimitResult {
 
 /**
  * Check rate limit using in-memory store (fallback)
+ * Note: This is a fallback for when Redis is unavailable.
+ * In production, this has limitations - see module-level docs.
  */
 function checkRateLimitInMemory(
   identifier: string,
   config: RateLimitConfig
 ): RateLimitResult {
+  // Warn once in production about in-memory limitations
+  warnAboutInMemoryFallback();
+
   const now = Date.now();
   const entry = rateLimitStore.get(identifier);
 
@@ -163,16 +190,29 @@ export function checkRateLimit(
  *
  * @param identifier - Unique identifier for the rate limit
  * @param config - Rate limit configuration
+ * @param options - Additional options
  * @returns Rate limit result
  */
 export async function checkRateLimitAsync(
   identifier: string,
-  config: RateLimitConfig
+  config: RateLimitConfig,
+  options?: { isSensitive?: boolean }
 ): Promise<RateLimitResult> {
   // Use Redis if available, otherwise fall back to in-memory
   if (isRedisAvailable()) {
     return checkRateLimitRedis(identifier, config);
   }
+
+  // For sensitive operations (login, password reset) in production without Redis,
+  // apply stricter rate limits since we can't rely on persistence
+  if (options?.isSensitive && process.env.NODE_ENV === 'production') {
+    const stricterConfig: RateLimitConfig = {
+      maxRequests: Math.max(1, Math.floor(config.maxRequests / 2)),
+      windowMs: config.windowMs,
+    };
+    return checkRateLimitInMemory(identifier, stricterConfig);
+  }
+
   return checkRateLimitInMemory(identifier, config);
 }
 

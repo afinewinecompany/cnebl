@@ -88,7 +88,8 @@ export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = await checkRateLimitAsync(
       `register:${clientIP}`,
-      RATE_LIMITS.register
+      RATE_LIMITS.register,
+      { isSensitive: true }
     );
 
     if (!rateLimitResult.allowed) {

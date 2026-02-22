@@ -81,7 +81,8 @@ export async function POST(request: NextRequest) {
     const clientIP = getClientIP(request.headers);
     const rateLimitResult = await checkRateLimitAsync(
       `reset-password:${clientIP}`,
-      RATE_LIMITS.passwordReset
+      RATE_LIMITS.passwordReset,
+      { isSensitive: true }
     );
 
     if (!rateLimitResult.allowed) {

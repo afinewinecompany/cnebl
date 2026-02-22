@@ -11,6 +11,7 @@ import {
   EmailHeading,
   EmailParagraph,
 } from '../base-layout';
+import { sanitizeHtmlForEmail } from '@/lib/api/sanitize';
 
 /**
  * Priority levels for announcements
@@ -82,7 +83,7 @@ export function LeagueAnnouncementTemplate({
       <Section style={styles.contentBox}>
         <div
           style={styles.contentText}
-          dangerouslySetInnerHTML={{ __html: content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtmlForEmail(content) }}
         />
       </Section>
 
